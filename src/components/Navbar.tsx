@@ -1,12 +1,39 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Phone, Mail } from "lucide-react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("home");
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  // Active section detection
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ["home", "about", "services", "process", "contact"];
+      const scrollPosition = window.scrollY + 100;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const offsetTop = element.offsetTop;
+          const offsetHeight = element.offsetHeight;
+          
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // Check initial position
+    
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <>
@@ -16,15 +43,15 @@ const Navbar = () => {
           <div className="hidden sm:flex items-center space-x-4 lg:space-x-6">
             <div className="flex items-center space-x-2">
               <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>+123 456 7890</span>
+              <span>+2349030673128</span>
             </div>
             <div className="flex items-center space-x-2">
               <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>info@anxoda.com</span>
+              <span>anxoda.business@gmail.com</span>
             </div>
           </div>
           <div className="text-center sm:text-right text-xs sm:text-sm">
-            <span>Office Hours: 9:00 AM - 6:00 PM</span>
+            <span>Office Hours: 9:00 AM - 5:00 PM | Lagos, Nigeria</span>
           </div>
         </div>
       </div>
@@ -34,7 +61,12 @@ const Navbar = () => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo */}
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/lovable-uploads/89c952ce-72e2-4bdc-9479-4a01dfb7f186.png" 
+                alt="Anxoda Logo" 
+                className="h-8 w-8 sm:h-10 sm:w-10"
+              />
               <div className="text-xl sm:text-2xl font-bold text-primary">
                 Anxoda
               </div>
@@ -42,19 +74,44 @@ const Navbar = () => {
 
             {/* Desktop Menu */}
             <div className="hidden lg:flex items-center space-x-6 xl:space-x-8">
-              <a href="#home" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
+              <a 
+                href="#home" 
+                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
+                  activeSection === "home" ? "text-primary border-b-2 border-primary pb-1" : ""
+                }`}
+              >
                 Home
               </a>
-              <a href="#about" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
+              <a 
+                href="#about" 
+                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
+                  activeSection === "about" ? "text-primary border-b-2 border-primary pb-1" : ""
+                }`}
+              >
                 About
               </a>
-              <a href="#services" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
+              <a 
+                href="#services" 
+                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
+                  activeSection === "services" ? "text-primary border-b-2 border-primary pb-1" : ""
+                }`}
+              >
                 Services
               </a>
-              <a href="#process" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
+              <a 
+                href="#process" 
+                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
+                  activeSection === "process" ? "text-primary border-b-2 border-primary pb-1" : ""
+                }`}
+              >
                 Process
               </a>
-              <a href="#contact" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
+              <a 
+                href="#contact" 
+                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
+                  activeSection === "contact" ? "text-primary border-b-2 border-primary pb-1" : ""
+                }`}
+              >
                 Contact
               </a>
               <Button variant="hero" size="sm">
@@ -76,35 +133,45 @@ const Navbar = () => {
               <div className="px-2 pt-2 pb-3 space-y-1">
                 <a
                   href="#home"
-                  className="block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base"
+                  className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
+                    activeSection === "home" ? "text-primary bg-primary/10 border-l-4 border-primary" : ""
+                  }`}
                   onClick={toggleMenu}
                 >
                   Home
                 </a>
                 <a
                   href="#about"
-                  className="block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base"
+                  className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
+                    activeSection === "about" ? "text-primary bg-primary/10 border-l-4 border-primary" : ""
+                  }`}
                   onClick={toggleMenu}
                 >
                   About
                 </a>
                 <a
                   href="#services"
-                  className="block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base"
+                  className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
+                    activeSection === "services" ? "text-primary bg-primary/10 border-l-4 border-primary" : ""
+                  }`}
                   onClick={toggleMenu}
                 >
                   Services
                 </a>
                 <a
                   href="#process"
-                  className="block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base"
+                  className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
+                    activeSection === "process" ? "text-primary bg-primary/10 border-l-4 border-primary" : ""
+                  }`}
                   onClick={toggleMenu}
                 >
                   Process
                 </a>
                 <a
                   href="#contact"
-                  className="block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base"
+                  className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
+                    activeSection === "contact" ? "text-primary bg-primary/10 border-l-4 border-primary" : ""
+                  }`}
                   onClick={toggleMenu}
                 >
                   Contact
@@ -119,11 +186,11 @@ const Navbar = () => {
                 <div className="px-3 py-3 space-y-2 border-t border-border mt-2">
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
-                    <span>+123 456 7890</span>
+                    <span>+2349030673128</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Mail className="w-4 h-4" />
-                    <span>info@anxoda.com</span>
+                    <span>anxoda.business@gmail.com</span>
                   </div>
                 </div>
               </div>

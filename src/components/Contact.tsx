@@ -19,25 +19,25 @@ const contactInfo = [
   {
     icon: Phone,
     title: "Phone",
-    details: "+123 456 7890",
+    details: "+2349030673128",
     description: "Call us for immediate assistance"
   },
   {
     icon: Mail,
     title: "Email",
-    details: "info@anxoda.com",
+    details: "anxoda.business@gmail.com",
     description: "Send us a detailed message"
   },
   {
     icon: MapPin,
     title: "Location",
-    details: "California, TX 75204",
+    details: "Lagos, Nigeria",
     description: "Visit our office"
   },
   {
     icon: Clock,
     title: "Business Hours",
-    details: "9:00 AM - 6:00 PM",
+    details: "9:00 AM - 5:00 PM",
     description: "Monday to Friday"
   }
 ];
@@ -149,7 +149,7 @@ const Contact = () => {
               </Button>
               <Button variant="professional" size="lg" className="w-full">
                 <Phone className="w-5 h-5 mr-2" />
-                Call Now: +123 456 7890
+                Call Now: +2349030673128
               </Button>
             </div>
           </div>

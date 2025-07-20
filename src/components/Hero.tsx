@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
+import heroHandshake from "@/assets/hero-handshake.jpg";
 
 const Hero = () => {
   return (
@@ -59,8 +60,8 @@ const Hero = () => {
           <div className="relative animate-slide-up order-first lg:order-last">
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=700&fit=crop&crop=face"
-                alt="African business consultant working with digital tablet and laptop"
+                src={heroHandshake}
+                alt="Professional African business owners sealing a deal with handshake, representing successful business partnerships and growth"
                 className="w-full h-auto rounded-2xl shadow-elegant max-w-md mx-auto lg:max-w-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-2xl"></div>
