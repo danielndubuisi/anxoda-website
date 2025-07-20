@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -51,52 +52,52 @@ const services = [
 
 const Services = () => {
   return (
-    <section id="services" className="py-20 bg-background">
+    <section id="services" className="py-12 sm:py-16 lg:py-20 bg-background">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-16 animate-fade-in">
-          <span className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
+        <div className="text-center mb-12 sm:mb-16 animate-fade-in">
+          <span className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-primary/10 text-primary rounded-full text-xs sm:text-sm font-medium mb-4">
             Our Services
           </span>
-          <h2 className="text-4xl lg:text-5xl font-bold text-foreground mb-6">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6">
             Comprehensive Solutions for
-            <span className="text-primary"> Your Business</span>
+            <span className="text-primary block sm:inline"> Your Business</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto">
             We provide end-to-end solutions that transform how small businesses operate, 
             compete, and grow in the digital landscape.
           </p>
         </div>
 
         {/* Services Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
           {services.map((service, index) => (
             <Card 
               key={index} 
-              className="group hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 animate-slide-up"
+              className="group hover:shadow-elegant transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-2 animate-slide-up"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <service.icon className="w-6 h-6" />
+              <CardHeader className="pb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <service.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <CardTitle className="text-xl font-bold">{service.title}</CardTitle>
-                <CardDescription className="text-muted-foreground">
+                <CardTitle className="text-lg sm:text-xl font-bold">{service.title}</CardTitle>
+                <CardDescription className="text-muted-foreground text-sm sm:text-base">
                   {service.description}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 mb-6">
+              <CardContent className="pt-0">
+                <ul className="space-y-2 mb-4 sm:mb-6">
                   {service.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center text-sm text-muted-foreground">
-                      <div className="w-2 h-2 bg-primary rounded-full mr-3"></div>
+                    <li key={idx} className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-primary rounded-full mr-2 sm:mr-3 flex-shrink-0"></div>
                       {feature}
                     </li>
                   ))}
                 </ul>
-                <Button variant="ghost" className="group p-0 h-auto text-primary hover:text-primary">
+                <Button variant="ghost" className="group p-0 h-auto text-primary hover:text-primary text-sm">
                   Learn More
-                  <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </CardContent>
             </Card>
@@ -104,16 +105,16 @@ const Services = () => {
         </div>
 
         {/* CTA Section */}
-        <div className="text-center bg-gradient-subtle rounded-2xl p-12 animate-fade-in">
-          <h3 className="text-3xl font-bold text-foreground mb-4">
+        <div className="text-center bg-gradient-subtle rounded-xl sm:rounded-2xl p-8 sm:p-12 animate-fade-in">
+          <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
             Ready to Transform Your Business?
           </h3>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
             Let's discuss how our solutions can help your business thrive in the digital economy.
           </p>
-          <Button variant="hero" size="lg" className="group">
+          <Button variant="hero" size="lg" className="group w-full sm:w-auto">
             Schedule Consultation
-            <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
       </div>
