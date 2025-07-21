@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Mail, 
@@ -31,15 +32,15 @@ const Footer = () => {
             <div className="space-y-3">
               <div className="flex items-center space-x-3 text-background/80">
                 <Phone className="w-5 h-5 text-primary" />
-                <span>+123 456 7890</span>
+                <span>+2349030673128</span>
               </div>
               <div className="flex items-center space-x-3 text-background/80">
                 <Mail className="w-5 h-5 text-primary" />
-                <span>info@anxoda.com</span>
+                <span>anxoda.business@gmail.com</span>
               </div>
               <div className="flex items-center space-x-3 text-background/80">
                 <MapPin className="w-5 h-5 text-primary" />
-                <span>California, TX 75204</span>
+                <span>Lagos, Nigeria</span>
               </div>
             </div>
           </div>
@@ -96,12 +97,12 @@ const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href="#" className="text-background/80 hover:text-primary transition-colors">
+                <a href="/case-studies" className="text-background/80 hover:text-primary transition-colors">
                   Case Studies
                 </a>
               </li>
               <li>
-                <a href="#" className="text-background/80 hover:text-primary transition-colors">
+                <a href="/blog" className="text-background/80 hover:text-primary transition-colors">
                   Blog
                 </a>
               </li>
@@ -132,25 +133,33 @@ const Footer = () => {
               <h5 className="font-medium text-background">Follow Us</h5>
               <div className="flex space-x-4">
                 <a 
-                  href="#" 
+                  href="https://facebook.com/anxoda" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 bg-background/10 rounded-full flex items-center justify-center text-background/80 hover:bg-primary hover:text-background transition-colors"
                 >
                   <Facebook className="w-5 h-5" />
                 </a>
                 <a 
-                  href="#" 
+                  href="https://twitter.com/anxoda" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 bg-background/10 rounded-full flex items-center justify-center text-background/80 hover:bg-primary hover:text-background transition-colors"
                 >
                   <Twitter className="w-5 h-5" />
                 </a>
                 <a 
-                  href="#" 
+                  href="https://linkedin.com/company/anxoda" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 bg-background/10 rounded-full flex items-center justify-center text-background/80 hover:bg-primary hover:text-background transition-colors"
                 >
                   <Linkedin className="w-5 h-5" />
                 </a>
                 <a 
-                  href="#" 
+                  href="https://instagram.com/anxoda" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 bg-background/10 rounded-full flex items-center justify-center text-background/80 hover:bg-primary hover:text-background transition-colors"
                 >
                   <Instagram className="w-5 h-5" />
@@ -169,13 +178,13 @@ const Footer = () => {
               © {currentYear} Anxoda. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm">
-              <a href="#" className="text-background/80 hover:text-primary transition-colors">
+              <a href="/privacy" className="text-background/80 hover:text-primary transition-colors">
                 Privacy Policy
               </a>
-              <a href="#" className="text-background/80 hover:text-primary transition-colors">
+              <a href="/terms" className="text-background/80 hover:text-primary transition-colors">
                 Terms of Service
               </a>
-              <a href="#" className="text-background/80 hover:text-primary transition-colors">
+              <a href="/cookies" className="text-background/80 hover:text-primary transition-colors">
                 Cookie Policy
               </a>
             </div>

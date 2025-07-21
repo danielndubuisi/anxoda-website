@@ -4,6 +4,13 @@ import { ArrowRight, Play } from "lucide-react";
 import heroHandshake from "@/assets/hero-handshake.jpg";
 
 const Hero = () => {
+  const scrollToContact = () => {
+    const contactSection = document.getElementById('contact');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <section id="home" className="relative min-h-screen bg-gradient-subtle overflow-hidden">
       {/* Background Pattern */}
@@ -29,11 +36,11 @@ const Hero = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
-              <Button variant="hero" size="lg" className="group w-full sm:w-auto">
+              <Button variant="hero" size="lg" className="group w-full sm:w-auto" onClick={scrollToContact}>
                 Get Started Today
                 <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
-              <Button variant="professional" size="lg" className="group w-full sm:w-auto">
+              <Button variant="professional" size="lg" className="group w-full sm:w-auto" onClick={() => window.open('https://calendly.com/anxoda-demo', '_blank')}>
                 <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Watch Demo
               </Button>
