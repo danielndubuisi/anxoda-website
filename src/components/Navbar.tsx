@@ -1,11 +1,14 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Phone, Mail } from "lucide-react";
+import { Menu, X, Phone, Mail, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const { user } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -114,9 +117,20 @@ const Navbar = () => {
               >
                 Contact
               </a>
-              <Button variant="hero" size="sm">
-                Get Started
-              </Button>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button variant="hero" size="sm">
+                    <User className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/auth">
+                  <Button variant="hero" size="sm">
+                    Get Started
+                  </Button>
+                </Link>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -177,9 +191,20 @@ const Navbar = () => {
                   Contact
                 </a>
                 <div className="px-3 py-3">
-                  <Button variant="hero" size="sm" className="w-full">
-                    Get Started
-                  </Button>
+                  {user ? (
+                    <Link to="/dashboard" onClick={toggleMenu}>
+                      <Button variant="hero" size="sm" className="w-full">
+                        <User className="w-4 h-4 mr-2" />
+                        Dashboard
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link to="/auth" onClick={toggleMenu}>
+                      <Button variant="hero" size="sm" className="w-full">
+                        Get Started
+                      </Button>
+                    </Link>
+                  )}
                 </div>
                 
                 {/* Mobile Contact Info */}

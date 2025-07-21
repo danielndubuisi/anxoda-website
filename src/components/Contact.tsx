@@ -14,6 +14,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const contactInfo = [
   {
@@ -44,6 +45,7 @@ const contactInfo = [
 
 const Contact = () => {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -59,7 +61,7 @@ const Contact = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Simple validation
@@ -71,19 +73,48 @@ const Contact = () => {
       return;
     }
 
-    // Simulate form submission
-    toast({
-      title: "Message sent successfully!",
-      description: "We'll get back to you within 24 hours."
-    });
+    setIsSubmitting(true);
 
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      company: "",
-      message: ""
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          message: formData.message
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({
+          title: "Message sent successfully!",
+          description: "We'll get back to you within 24 hours. Check your email for confirmation."
+        });
+
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          company: "",
+          message: ""
+        });
+      } else {
+        throw new Error(data?.error || "Failed to send message");
+      }
+    } catch (error: any) {
+      console.error('Contact form error:', error);
+      toast({
+        title: "Failed to send message",
+        description: error.message || "Please try again later or contact us directly.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -212,10 +243,10 @@ const Contact = () => {
                     />
                   </div>
                   
-                  <Button type="submit" variant="hero" size="lg" className="w-full group">
+                  <Button type="submit" variant="hero" size="lg" className="w-full group" disabled={isSubmitting}>
                     <Send className="w-5 h-5 mr-2" />
-                    Send Message
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    {isSubmitting ? "Sending..." : "Send Message"}
+                    {!isSubmitting && <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />}
                   </Button>
                 </form>
               </CardContent>

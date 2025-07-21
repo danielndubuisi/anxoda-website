@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Mail, 
@@ -10,8 +11,56 @@ import {
   Instagram,
   ArrowRight
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const { toast } = useToast();
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        title: "Please enter your email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubscribing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('subscribe-newsletter', {
+        body: { email }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({
+          title: "Successfully subscribed!",
+          description: "Thank you for subscribing to our newsletter. Check your email for confirmation."
+        });
+        setEmail("");
+      } else {
+        throw new Error(data?.error || "Failed to subscribe");
+      }
+    } catch (error: any) {
+      console.error('Newsletter subscription error:', error);
+      toast({
+        title: "Subscription failed",
+        description: error.message || "Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
   const currentYear = new Date().getFullYear();
 
   return (
@@ -116,16 +165,19 @@ const Footer = () => {
               Subscribe to our newsletter for the latest insights on digital transformation.
             </p>
             <div className="space-y-3">
-              <div className="flex space-x-2">
+              <form onSubmit={handleNewsletterSubmit} className="flex space-x-2">
                 <input
                   type="email"
                   placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubscribing}
                   className="flex-1 px-4 py-2 rounded-md bg-background/10 border border-background/20 text-background placeholder:text-background/60 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <Button variant="hero" size="icon">
+                <Button type="submit" variant="hero" size="icon" disabled={isSubscribing}>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
-              </div>
+              </form>
             </div>
             
             {/* Social Links */}
