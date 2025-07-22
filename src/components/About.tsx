@@ -52,7 +52,7 @@ const certifications = [
 const teamMembers = [
   {
     name: "Daniel Ndubuisi",
-    role: "CTO & Founder",
+    role: "CTO & Co-Founder",
     bio: "Expert in AI solutions and software development with a focus on business transformation.",
     image: "https://media.licdn.com/dms/image/v2/D4D03AQH1fHoEjRglyA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1686343884759?e=1756339200&v=beta&t=ceWNTBDMbMnrl9171ipZSiLzATKzsmbct0QTHTja1KE",
     linkedin: "https://www.linkedin.com/in/pharmadevdaniel",
@@ -60,7 +60,7 @@ const teamMembers = [
   },
   {
     name: "Ikenna M.D. Nwankwo",
-    role: "Co-Founder",
+    role: "COO & Co-Founder",
     bio: "Passionate about empowering small businesses through technology and data consulting.",
     image: "https://media.licdn.com/dms/image/v2/D4E03AQH-GudX48-fdg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1727476374852?e=1756339200&v=beta&t=TtgHq8l3uHN3ZLj49JpFi4mRiRmfo0tJCXetu7pZDRo",
     linkedin: "https://www.linkedin.com/in/ikenna-m-d-nwankwo-3a2390258",
