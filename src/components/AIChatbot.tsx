@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,55 +25,59 @@ const AIChatbot = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isTyping]);
+
   const businessFAQs = {
     "services": {
       keywords: ["services", "what do you do", "offerings", "solutions"],
-      response: "We provide comprehensive digital transformation solutions including:\n\n• Custom Software Development\n• AI & Machine Learning Solutions\n• Data Analytics & Consultancy\n• Business Process Automation\n• Digital Security Solutions\n• Growth Optimization Strategies\n\nWhich of these interests you most?"
+      response: "We provide comprehensive digital transformation solutions including:\n\n• Custom Software Development\n• AI & Machine Learning Solutions\n• Data Analytics & Consultancy\n• Business Process Automation\n• Cloud Migration & DevOps."
     },
     "pricing": {
       keywords: ["pricing", "cost", "price", "how much", "rates", "fees"],
-      response: "Our pricing is tailored to each business's specific needs. We offer:\n\n• Free initial consultation\n• Custom project quotes\n• Flexible payment plans\n• Subscription-based services for ongoing support\n\nWould you like to schedule a free consultation to discuss your specific requirements and get a personalized quote?"
+      response: "Our pricing is tailored to each business's specific needs. We offer:\n\n• Free initial consultation\n• Custom project quotes\n• Flexible payment plans\n• Subscription-based services for ongoing support."
     },
     "ai": {
       keywords: ["ai", "artificial intelligence", "machine learning", "automation"],
-      response: "Our AI solutions help businesses:\n\n• Automate repetitive tasks\n• Predict customer behavior\n• Optimize operations\n• Improve decision-making\n• Enhance customer experience\n\nWe work with small businesses to implement AI gradually, ensuring you see ROI quickly. What business processes would you like to automate?"
+      response: "Our AI solutions help businesses:\n\n• Automate repetitive tasks\n• Predict customer behavior\n• Optimize operations\n• Improve decision-making\n• Enhance customer experiences."
     },
     "consultation": {
       keywords: ["consultation", "meeting", "call", "talk", "discuss"],
-      response: "I'd love to connect you with our team! We offer:\n\n• Free 30-minute consultation calls\n• Business needs assessment\n• Solution recommendations\n• Custom project proposals\n\nYou can schedule a consultation by filling out our contact form or calling +2349030673128. What's the best time to reach you?"
+      response: "I'd love to connect you with our team! We offer:\n\n• Free 30-minute consultation calls\n• Business needs assessment\n• Solution recommendations\n• Custom project proposals\nLet me know if you'd like to schedule a call."
     },
     "support": {
       keywords: ["support", "help", "maintenance", "training"],
-      response: "We provide comprehensive support including:\n\n• 24/7 technical support\n• Staff training programs\n• Regular system updates\n• Performance optimization\n• Strategic guidance\n\nOur goal is to ensure your success long after implementation. What type of support are you most interested in?"
+      response: "We provide comprehensive support including:\n\n• 24/7 technical support\n• Staff training programs\n• Regular system updates\n• Performance optimization\n• Strategic guidance."
     },
     "process": {
       keywords: ["process", "how it works", "methodology", "timeline"],
-      response: "Our proven 6-step process:\n\n1. Consultation & Discovery\n2. Analysis & Strategy\n3. Solution Design\n4. Development & Integration\n5. Deployment & Launch\n6. Support & Optimization\n\nMost projects take 4-12 weeks depending on complexity. Would you like to learn more about any specific step?"
+      response: "Our proven 6-step process:\n\n1. Consultation & Discovery\n2. Analysis & Strategy\n3. Solution Design\n4. Development & Integration\n5. Deployment & Launch\n6. Support & Optimization"
     }
   };
 
   const getAIResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
-    
-    // Check for greetings
+
     if (lowerMessage.includes("hello") || lowerMessage.includes("hi") || lowerMessage.includes("hey")) {
       return "Hello! I'm here to help you learn about Anxoda's services and how we can transform your business. What specific questions do you have?";
     }
 
-    // Check for contact information
     if (lowerMessage.includes("contact") || lowerMessage.includes("phone") || lowerMessage.includes("email")) {
-      return "You can reach us at:\n\n📞 Phone: +2349030673128\n📧 Email: anxoda.business@gmail.com\n📍 Location: Lagos, Nigeria\n🕒 Hours: 9:00 AM - 5:00 PM (Mon-Fri)\n\nWould you like to schedule a consultation?";
+      return "You can reach us at:\n\n📞 Phone: +2349030673128\n📧 Email: anxoda.business@gmail.com\n📍 Location: Lagos, Nigeria\n🕒 Hours: 9:00 AM - 5:00 PM (Mon-Fri)\n\nWould you like to schedule a meeting?";
     }
 
-    // Search through FAQ responses
     for (const [category, faq] of Object.entries(businessFAQs)) {
       if (faq.keywords.some(keyword => lowerMessage.includes(keyword))) {
         return faq.response;
       }
     }
 
-    // Default response
-    return "That's a great question! While I can help with basic information about our services, pricing, and processes, I'd recommend scheduling a free consultation with our team for more detailed discussions.\n\nYou can:\n• Fill out our contact form\n• Call us at +2349030673128\n• Email anxoda.business@gmail.com\n\nIs there anything else I can help you with today?";
+    return "That's a great question! While I can help with basic information about our services, pricing, and processes, I'd recommend scheduling a free consultation with our team for more detailed discussion. Would you like to set that up?";
   };
 
   const handleSendMessage = async () => {
@@ -90,7 +94,6 @@ const AIChatbot = () => {
     setInputMessage("");
     setIsTyping(true);
 
-    // Simulate AI thinking time
     setTimeout(() => {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -98,7 +101,7 @@ const AIChatbot = () => {
         isBot: true,
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, aiResponse]);
       setIsTyping(false);
     }, 1000);
@@ -144,10 +147,10 @@ const AIChatbot = () => {
                 </Button>
               </div>
             </CardHeader>
-            
+
             <CardContent className="flex-1 flex flex-col p-0">
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 p-4 overflow-y-auto">
                 <div className="space-y-4">
                   {messages.map((message) => (
                     <div
@@ -174,7 +177,6 @@ const AIChatbot = () => {
                       </div>
                     </div>
                   ))}
-                  
                   {isTyping && (
                     <div className="flex justify-start">
                       <div className="bg-secondary text-secondary-foreground rounded-lg p-3">
@@ -189,9 +191,11 @@ const AIChatbot = () => {
                       </div>
                     </div>
                   )}
+                  {/* This ensures auto-scroll to latest message */}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
-              
+
               {/* Input */}
               <div className="p-4 border-t border-border">
                 <div className="flex space-x-2">
