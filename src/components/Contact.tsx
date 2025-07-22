@@ -173,7 +173,12 @@ const Contact = () => {
 
             {/* Quick Action Buttons */}
             <div className="space-y-4">
-              <Button variant="hero" size="lg" className="w-full group">
+              <Button variant="hero" size="lg" className="w-full group" onClick={() => {
+                const formSection = document.getElementById('contact-form');
+                if (formSection) {
+                  formSection.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}>
                 <MessageSquare className="w-5 h-5 mr-2" />
                 Schedule Free Consultation
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -186,7 +191,7 @@ const Contact = () => {
           </div>
 
           {/* Contact Form */}
-          <div className="animate-slide-up">
+          <div className="animate-slide-up" id="contact-form">
             <Card className="shadow-elegant">
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-center">Send Us a Message</CardTitle>

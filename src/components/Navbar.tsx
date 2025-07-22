@@ -64,7 +64,7 @@ const Navbar = () => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo */}
-            <div className="flex items-center space-x-3">
+            <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
               <img 
                 src="/lovable-uploads/89c952ce-72e2-4bdc-9479-4a01dfb7f186.png" 
                 alt="Anxoda Logo" 
@@ -73,7 +73,7 @@ const Navbar = () => {
               <div className="text-xl sm:text-2xl font-bold text-primary">
                 Anxoda
               </div>
-            </div>
+            </Link>
 
             {/* Desktop Menu */}
             <div className="hidden lg:flex items-center space-x-6 xl:space-x-8">

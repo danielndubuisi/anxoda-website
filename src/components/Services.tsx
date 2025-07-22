@@ -112,10 +112,15 @@ const Services = () => {
           <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
             Let's discuss how our solutions can help your business thrive in the digital economy.
           </p>
-          <Button variant="hero" size="lg" className="group w-full sm:w-auto">
-            Schedule Consultation
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
+            <Button variant="hero" size="lg" className="group w-full sm:w-auto" onClick={() => {
+              const contactSection = document.getElementById('contact');
+              if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}>
+              Schedule Consultation
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
         </div>
       </div>
     </section>

@@ -1,0 +1,222 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageCircle, X, Send, User, Bot } from "lucide-react";
+
+interface Message {
+  id: string;
+  content: string;
+  isBot: boolean;
+  timestamp: Date;
+}
+
+const AIChatbot = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      content: "Hi! I'm Anxoda's AI assistant. I can help answer questions about our services, pricing, and how we can help transform your business. What would you like to know?",
+      isBot: true,
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  const businessFAQs = {
+    "services": {
+      keywords: ["services", "what do you do", "offerings", "solutions"],
+      response: "We provide comprehensive digital transformation solutions including:\n\n• Custom Software Development\n• AI & Machine Learning Solutions\n• Data Analytics & Consultancy\n• Business Process Automation\n• Digital Security Solutions\n• Growth Optimization Strategies\n\nWhich of these interests you most?"
+    },
+    "pricing": {
+      keywords: ["pricing", "cost", "price", "how much", "rates", "fees"],
+      response: "Our pricing is tailored to each business's specific needs. We offer:\n\n• Free initial consultation\n• Custom project quotes\n• Flexible payment plans\n• Subscription-based services for ongoing support\n\nWould you like to schedule a free consultation to discuss your specific requirements and get a personalized quote?"
+    },
+    "ai": {
+      keywords: ["ai", "artificial intelligence", "machine learning", "automation"],
+      response: "Our AI solutions help businesses:\n\n• Automate repetitive tasks\n• Predict customer behavior\n• Optimize operations\n• Improve decision-making\n• Enhance customer experience\n\nWe work with small businesses to implement AI gradually, ensuring you see ROI quickly. What business processes would you like to automate?"
+    },
+    "consultation": {
+      keywords: ["consultation", "meeting", "call", "talk", "discuss"],
+      response: "I'd love to connect you with our team! We offer:\n\n• Free 30-minute consultation calls\n• Business needs assessment\n• Solution recommendations\n• Custom project proposals\n\nYou can schedule a consultation by filling out our contact form or calling +2349030673128. What's the best time to reach you?"
+    },
+    "support": {
+      keywords: ["support", "help", "maintenance", "training"],
+      response: "We provide comprehensive support including:\n\n• 24/7 technical support\n• Staff training programs\n• Regular system updates\n• Performance optimization\n• Strategic guidance\n\nOur goal is to ensure your success long after implementation. What type of support are you most interested in?"
+    },
+    "process": {
+      keywords: ["process", "how it works", "methodology", "timeline"],
+      response: "Our proven 6-step process:\n\n1. Consultation & Discovery\n2. Analysis & Strategy\n3. Solution Design\n4. Development & Integration\n5. Deployment & Launch\n6. Support & Optimization\n\nMost projects take 4-12 weeks depending on complexity. Would you like to learn more about any specific step?"
+    }
+  };
+
+  const getAIResponse = (userMessage: string): string => {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    // Check for greetings
+    if (lowerMessage.includes("hello") || lowerMessage.includes("hi") || lowerMessage.includes("hey")) {
+      return "Hello! I'm here to help you learn about Anxoda's services and how we can transform your business. What specific questions do you have?";
+    }
+
+    // Check for contact information
+    if (lowerMessage.includes("contact") || lowerMessage.includes("phone") || lowerMessage.includes("email")) {
+      return "You can reach us at:\n\n📞 Phone: +2349030673128\n📧 Email: anxoda.business@gmail.com\n📍 Location: Lagos, Nigeria\n🕒 Hours: 9:00 AM - 5:00 PM (Mon-Fri)\n\nWould you like to schedule a consultation?";
+    }
+
+    // Search through FAQ responses
+    for (const [category, faq] of Object.entries(businessFAQs)) {
+      if (faq.keywords.some(keyword => lowerMessage.includes(keyword))) {
+        return faq.response;
+      }
+    }
+
+    // Default response
+    return "That's a great question! While I can help with basic information about our services, pricing, and processes, I'd recommend scheduling a free consultation with our team for more detailed discussions.\n\nYou can:\n• Fill out our contact form\n• Call us at +2349030673128\n• Email anxoda.business@gmail.com\n\nIs there anything else I can help you with today?";
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: inputMessage,
+      isBot: false,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage("");
+    setIsTyping(true);
+
+    // Simulate AI thinking time
+    setTimeout(() => {
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: getAIResponse(inputMessage),
+        isBot: true,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, aiResponse]);
+      setIsTyping(false);
+    }, 1000);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  return (
+    <>
+      {/* Chat Button */}
+      {!isOpen && (
+        <Button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-glow hover:shadow-elegant transition-all duration-300 z-50"
+          size="icon"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </Button>
+      )}
+
+      {/* Chat Window */}
+      {isOpen && (
+        <div className="fixed bottom-6 right-6 w-80 sm:w-96 h-96 z-50">
+          <Card className="h-full flex flex-col shadow-elegant border-primary/20">
+            <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Bot className="w-5 h-5" />
+                  <CardTitle className="text-lg">Anxoda AI Assistant</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="flex-1 flex flex-col p-0">
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.isBot ? "justify-start" : "justify-end"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          message.isBot
+                            ? "bg-secondary text-secondary-foreground"
+                            : "bg-primary text-primary-foreground"
+                        }`}
+                      >
+                        <div className="flex items-start space-x-2">
+                          {message.isBot ? (
+                            <Bot className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="text-sm whitespace-pre-line">
+                            {message.content}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-secondary text-secondary-foreground rounded-lg p-3">
+                        <div className="flex items-center space-x-2">
+                          <Bot className="w-4 h-4" />
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+              
+              {/* Input */}
+              <div className="p-4 border-t border-border">
+                <div className="flex space-x-2">
+                  <Input
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask me about our services..."
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    size="icon"
+                    disabled={!inputMessage.trim() || isTyping}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default AIChatbot;

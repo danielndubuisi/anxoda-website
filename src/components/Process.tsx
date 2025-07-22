@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ArrowDown
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const processSteps = [
   {
@@ -149,10 +150,12 @@ const Process = () => {
             <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
               Let's begin your journey to digital success with our proven methodology.
             </p>
-            <Button variant="hero" size="lg" className="group w-full sm:w-auto">
-              Start Your Project
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
+            <Link to="/auth">
+              <Button variant="hero" size="lg" className="group w-full sm:w-auto">
+                Start Your Project
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

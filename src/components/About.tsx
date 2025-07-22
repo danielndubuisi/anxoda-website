@@ -13,6 +13,7 @@ import {
   Linkedin,
   Mail
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const achievements = [
   {
@@ -124,10 +125,12 @@ const About = () => {
               </div>
             </div>
 
-            <Button variant="hero" size="lg" className="group w-full sm:w-auto">
-              Learn More About Us
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
+            <Link to="/about-us">
+              <Button variant="hero" size="lg" className="group w-full sm:w-auto">
+                Learn More About Us
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
           </div>
 
           {/* Image */}
