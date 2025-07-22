@@ -51,20 +51,20 @@ const certifications = [
 
 const teamMembers = [
   {
-    name: "Your Name",
-    role: "CEO & Founder",
-    bio: "Passionate about empowering small businesses through technology and strategic consulting.",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
-    linkedin: "#",
-    email: "founder@anxoda.com"
+    name: "Daniel Ndubuisi",
+    role: "CTO & Founder",
+    bio: "Expert in AI solutions and software development with a focus on business transformation.",
+    image: "https://media.licdn.com/dms/image/v2/D4D03AQH1fHoEjRglyA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1686343884759?e=1756339200&v=beta&t=ceWNTBDMbMnrl9171ipZSiLzATKzsmbct0QTHTja1KE",
+    linkedin: "https://www.linkedin.com/in/pharmadevdaniel",
+    email: "ndubeansdaniel97@gmail.com"
   },
   {
-    name: "Co-Founder Name",
-    role: "CTO & Co-Founder",
-    bio: "Expert in AI solutions and software development with a focus on business transformation.",
-    image: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400&h=400&fit=crop&crop=face",
-    linkedin: "#",
-    email: "cofounder@anxoda.com"
+    name: "Ikenna M.D. Nwankwo",
+    role: "Co-Founder",
+    bio: "Passionate about empowering small businesses through technology and data consulting.",
+    image: "https://media.licdn.com/dms/image/v2/D4E03AQH-GudX48-fdg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1727476374852?e=1756339200&v=beta&t=TtgHq8l3uHN3ZLj49JpFi4mRiRmfo0tJCXetu7pZDRo",
+    linkedin: "https://www.linkedin.com/in/ikenna-m-d-nwankwo-3a2390258",
+    email: "martin.nwankwo.169@gmail.com"
   }
 ];
 
