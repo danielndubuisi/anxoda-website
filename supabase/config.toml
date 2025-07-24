@@ -1,1 +1,35 @@
 project_id = "pjevyfyvrgvjgspxfikd"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+additional_redirect_urls = ["https://localhost:3000"]
+external_email_enabled = true
+external_phone_enabled = false
+external_anonymous_users_enabled = false
+disable_signup = false
+auto_confirm_email = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[functions.send-contact-email]
+verify_jwt = false
+
+[functions.subscribe-newsletter]
+verify_jwt = false

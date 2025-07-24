@@ -129,9 +129,9 @@ const AIChatbot = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-80 sm:w-96 h-96 z-50">
+        <div className="fixed bottom-6 right-6 w-80 sm:w-96 h-[90vh] max-h-[600px] z-50">
           <Card className="h-full flex flex-col shadow-elegant border-primary/20">
-            <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg">
+            <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Bot className="w-5 h-5" />
@@ -148,9 +148,9 @@ const AIChatbot = () => {
               </div>
             </CardHeader>
 
-            <CardContent className="flex-1 flex flex-col p-0">
+            <CardContent className="flex-1 flex flex-col p-0 min-h-0">
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4 overflow-y-auto">
+              <ScrollArea className="flex-1 p-4 overflow-y-auto min-h-0">
                 <div className="space-y-4">
                   {messages.map((message) => (
                     <div
@@ -158,7 +158,7 @@ const AIChatbot = () => {
                       className={`flex ${message.isBot ? "justify-start" : "justify-end"}`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-lg p-3 ${
+                        className={`max-w-[85%] rounded-lg p-3 ${
                           message.isBot
                             ? "bg-secondary text-secondary-foreground"
                             : "bg-primary text-primary-foreground"
@@ -170,7 +170,7 @@ const AIChatbot = () => {
                           ) : (
                             <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
                           )}
-                          <div className="text-sm whitespace-pre-line">
+                          <div className="text-sm whitespace-pre-line break-words">
                             {message.content}
                           </div>
                         </div>
@@ -197,7 +197,7 @@ const AIChatbot = () => {
               </ScrollArea>
 
               {/* Input */}
-              <div className="p-4 border-t border-border">
+              <div className="p-4 border-t border-border flex-shrink-0">
                 <div className="flex space-x-2">
                   <Input
                     value={inputMessage}
