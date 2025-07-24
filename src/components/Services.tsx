@@ -95,7 +95,16 @@ const Services = () => {
                     </li>
                   ))}
                 </ul>
-                <Button variant="ghost" className="group p-0 h-auto text-primary hover:text-primary text-sm">
+                <Button 
+                  variant="ghost" 
+                  className="group p-0 h-auto text-primary hover:text-primary text-sm"
+                  onClick={() => {
+                    const contactSection = document.getElementById('contact');
+                    if (contactSection) {
+                      contactSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                >
                   Learn More
                   <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                 </Button>

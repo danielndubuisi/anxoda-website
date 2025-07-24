@@ -52,7 +52,7 @@ const certifications = [
 const teamMembers = [
   {
     name: "Daniel Ndubuisi",
-    role: "CTO & Founder",
+    role: "CTO & Co-Founder",
     bio: "Expert in AI solutions and software development with a focus on business transformation.",
     image: "https://media.licdn.com/dms/image/v2/D4D03AQH1fHoEjRglyA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1686343884759?e=1756339200&v=beta&t=ceWNTBDMbMnrl9171ipZSiLzATKzsmbct0QTHTja1KE",
     linkedin: "https://www.linkedin.com/in/pharmadevdaniel",
@@ -173,11 +173,21 @@ const About = () => {
                   <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed">{member.bio}</p>
                   
                   <div className="flex justify-center space-x-4">
-                    <Button variant="ghost" size="sm" className="p-2 h-auto">
-                      <Linkedin className="w-4 h-4 text-primary hover:text-primary-foreground" />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="p-2 h-auto hover:bg-primary hover:text-primary-foreground" 
+                      onClick={() => window.open(member.linkedin, '_blank')}
+                    >
+                      <Linkedin className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="p-2 h-auto">
-                      <Mail className="w-4 h-4 text-primary hover:text-primary-foreground" />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="p-2 h-auto hover:bg-primary hover:text-primary-foreground" 
+                      onClick={() => window.open(`mailto:${member.email}`, '_blank')}
+                    >
+                      <Mail className="w-4 h-4" />
                     </Button>
                   </div>
                 </CardContent>

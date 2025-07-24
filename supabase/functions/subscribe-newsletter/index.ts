@@ -74,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send welcome email to subscriber
     const welcomeEmailResponse = await resend.emails.send({
-      from: "Anxoda <noreply@anxoda.com>",
+      from: "Anxoda <onboarding@resend.dev>",
       to: [email],
       subject: "Welcome to Anxoda's Newsletter!",
       html: `
@@ -120,7 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send notification to business
     const businessNotificationResponse = await resend.emails.send({
-      from: "Anxoda Newsletter <noreply@anxoda.com>",
+      from: "Anxoda Newsletter <onboarding@resend.dev>",
       to: ["anxoda.business@gmail.com"],
       subject: "New Newsletter Subscription",
       html: `
