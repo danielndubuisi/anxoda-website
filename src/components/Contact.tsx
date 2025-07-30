@@ -26,7 +26,7 @@ const contactInfo = [
   {
     icon: Mail,
     title: "Email",
-    details: "anxoda.business@gmail.com",
+    details: "info@anxoda.com",
     description: "Send us a detailed message"
   },
   {
@@ -185,7 +185,7 @@ const Contact = () => {
               </Button>
               <Button variant="professional" size="lg" className="w-full">
                 <Phone className="w-5 h-5 mr-2" />
-                Call Now: +2349030673128
+                WhatsApp: +2349030673128
               </Button>
             </div>
           </div>
