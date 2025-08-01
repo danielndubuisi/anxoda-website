@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-    base: "/anxoda-website/", // Required for GitHub Pages
+    base: "/", // Required for custome domain
     server: {
         host: "::",
         port: 8080,

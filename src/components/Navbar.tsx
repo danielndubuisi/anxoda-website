@@ -78,7 +78,7 @@ const Navbar = () => {
                             to="/"
                             className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                             <img
-                                src="src/assets/logo.png"
+                                src="./assets/logo.png"
                                 alt="Anxoda Logo"
                                 className="h-8 w-8 sm:h-10 sm:w-10"
                             />
