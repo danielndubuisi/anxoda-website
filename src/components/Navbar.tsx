@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, Phone, Mail, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/logo.webp";
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -78,7 +79,7 @@ const Navbar = () => {
                             to="/"
                             className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                             <img
-                                src="./assets/logo.png"
+                                src={logo}
                                 alt="Anxoda Logo"
                                 className="h-8 w-8 sm:h-10 sm:w-10"
                             />

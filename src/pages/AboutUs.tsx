@@ -4,7 +4,7 @@ import { ArrowRight, Users, Target, Lightbulb, Award, Globe, TrendingUp } from "
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import teamCollaboration from "@/assets/team-collaboration.jpg";
+import teamCollaboration from "@/assets/team-collaboration.webp";
 
 const AboutUs = () => {
   const scrollToContact = () => {

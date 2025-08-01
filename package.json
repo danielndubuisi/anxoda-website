@@ -9,6 +9,7 @@
         "build:dev": "vite build --mode development",
         "predeploy": "npm run build",
         "deploy": "gh-pages -d dist",
+        "postbuild": "copy CNAME dist\\CNAME",
         "lint": "eslint .",
         "preview": "vite preview"
     },

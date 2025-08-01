@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
-import heroHandshake from "@/assets/hero-handshake.jpg";
+import heroHandshake from "@/assets/hero-handshake.webp";
 
 const Hero = () => {
   const scrollToContact = () => {
