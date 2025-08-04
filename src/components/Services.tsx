@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   Shield, 
   Zap,
-  ArrowRight
+  ArrowRight,
+  PersonStanding
 } from "lucide-react";
 
 const services = [
@@ -97,9 +98,9 @@ const Services = () => {
                 </ul>
                 <Button 
                   variant="ghost" 
-                  className="group p-0 h-auto text-primary hover:text-primary text-sm"
+                  className="group h-auto text-primary hover:text-secondary text-sm p-2 sm:p-3 flex items-center justify-between w-full"
                   onClick={() => {
-                    const contactSection = document.getElementById('contact');
+                    const contactSection = document.getElementById('contact-form');
                     if (contactSection) {
                       contactSection.scrollIntoView({ behavior: 'smooth' });
                     }
@@ -122,13 +123,13 @@ const Services = () => {
             Let's discuss how our solutions can help your business thrive in the digital economy.
           </p>
             <Button variant="hero" size="lg" className="group w-full sm:w-auto" onClick={() => {
-              const contactSection = document.getElementById('contact');
+              const contactSection = document.getElementById('contact-form');
               if (contactSection) {
                 contactSection.scrollIntoView({ behavior: 'smooth' });
               }
             }}>
+              <PersonStanding className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               Schedule Consultation
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
         </div>
       </div>

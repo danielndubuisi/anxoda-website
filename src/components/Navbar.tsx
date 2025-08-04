@@ -12,7 +12,19 @@ const Navbar = () => {
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-    // Active section detection
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) {
+            const isMobile = window.innerWidth < 1024;
+            // Adjust offset for mobile view
+            const offset = isMobile ? 450 : 0; // adjust this if needed for a fixed navbar
+            // Calculate the position to scroll to
+            const y = el.getBoundingClientRect().top + window.scrollY - offset;
+            window.scrollTo({ top: y, behavior: "smooth" });
+        }
+        setIsMenuOpen(false);
+    };
+
     useEffect(() => {
         const handleScroll = () => {
             const sections = [
@@ -42,10 +54,18 @@ const Navbar = () => {
         };
 
         window.addEventListener("scroll", handleScroll);
-        handleScroll(); // Check initial position
+        handleScroll();
 
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    const navLinks = [
+        { label: "Home", id: "home" },
+        { label: "About", id: "about" },
+        { label: "Services", id: "services" },
+        { label: "Process", id: "process" },
+        { label: "Contact", id: "contact" },
+    ];
 
     return (
         <>
@@ -74,7 +94,6 @@ const Navbar = () => {
             <nav className="bg-background shadow-card sticky top-0 z-50">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center h-14 sm:h-16">
-                        {/* Logo */}
                         <Link
                             to="/"
                             className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
@@ -88,53 +107,21 @@ const Navbar = () => {
                             </div>
                         </Link>
 
-                        {/* Desktop Menu */}
+                        {/* Desktop Nav */}
                         <div className="hidden lg:flex items-center space-x-6 xl:space-x-8">
-                            <a
-                                href="#home"
-                                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
-                                    activeSection === "home"
-                                        ? "text-primary border-b-2 border-primary pb-1"
-                                        : ""
-                                }`}>
-                                Home
-                            </a>
-                            <a
-                                href="#about"
-                                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
-                                    activeSection === "about"
-                                        ? "text-primary border-b-2 border-primary pb-1"
-                                        : ""
-                                }`}>
-                                About
-                            </a>
-                            <a
-                                href="#services"
-                                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
-                                    activeSection === "services"
-                                        ? "text-primary border-b-2 border-primary pb-1"
-                                        : ""
-                                }`}>
-                                Services
-                            </a>
-                            <a
-                                href="#process"
-                                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
-                                    activeSection === "process"
-                                        ? "text-primary border-b-2 border-primary pb-1"
-                                        : ""
-                                }`}>
-                                Process
-                            </a>
-                            <a
-                                href="#contact"
-                                className={`text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
-                                    activeSection === "contact"
-                                        ? "text-primary border-b-2 border-primary pb-1"
-                                        : ""
-                                }`}>
-                                Contact
-                            </a>
+                            {navLinks.map(({ label, id }) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => scrollToSection(id)}
+                                    className={`bg-transparent border-none outline-none cursor-pointer text-foreground hover:text-primary transition-colors text-sm xl:text-base relative ${
+                                        activeSection === id
+                                            ? "text-primary border-b-2 border-primary pb-1"
+                                            : ""
+                                    }`}>
+                                    {label}
+                                </button>
+                            ))}
                             {user ? (
                                 <Link to="/dashboard">
                                     <Button variant="hero" size="sm">
@@ -171,56 +158,20 @@ const Navbar = () => {
                     {isMenuOpen && (
                         <div className="lg:hidden border-t border-border bg-background">
                             <div className="px-2 pt-2 pb-3 space-y-1">
-                                <a
-                                    href="#home"
-                                    className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
-                                        activeSection === "home"
-                                            ? "text-primary bg-primary/10 border-l-4 border-primary"
-                                            : ""
-                                    }`}
-                                    onClick={toggleMenu}>
-                                    Home
-                                </a>
-                                <a
-                                    href="#about"
-                                    className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
-                                        activeSection === "about"
-                                            ? "text-primary bg-primary/10 border-l-4 border-primary"
-                                            : ""
-                                    }`}
-                                    onClick={toggleMenu}>
-                                    About
-                                </a>
-                                <a
-                                    href="#services"
-                                    className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
-                                        activeSection === "services"
-                                            ? "text-primary bg-primary/10 border-l-4 border-primary"
-                                            : ""
-                                    }`}
-                                    onClick={toggleMenu}>
-                                    Services
-                                </a>
-                                <a
-                                    href="#process"
-                                    className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
-                                        activeSection === "process"
-                                            ? "text-primary bg-primary/10 border-l-4 border-primary"
-                                            : ""
-                                    }`}
-                                    onClick={toggleMenu}>
-                                    Process
-                                </a>
-                                <a
-                                    href="#contact"
-                                    className={`block px-3 py-3 text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
-                                        activeSection === "contact"
-                                            ? "text-primary bg-primary/10 border-l-4 border-primary"
-                                            : ""
-                                    }`}
-                                    onClick={toggleMenu}>
-                                    Contact
-                                </a>
+                                {navLinks.map(({ label, id }) => (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => scrollToSection(id)}
+                                        className={`block px-3 py-3 text-left w-full text-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors text-base ${
+                                            activeSection === id
+                                                ? "text-primary bg-primary/10 border-l-4 border-primary"
+                                                : ""
+                                        }`}>
+                                        {label}
+                                    </button>
+                                ))}
+
                                 <div className="px-3 py-3">
                                     {user ? (
                                         <Link
@@ -246,7 +197,6 @@ const Navbar = () => {
                                     )}
                                 </div>
 
-                                {/* Mobile Contact Info */}
                                 <div className="px-3 py-3 space-y-2 border-t border-border mt-2">
                                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                                         <Phone className="w-4 h-4" />

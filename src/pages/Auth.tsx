@@ -84,7 +84,7 @@ const Auth = () => {
               Welcome to Anxoda
             </CardTitle>
             <p className="text-muted-foreground">
-              {isLogin ? "Sign in to your account" : "Create your business account"}
+              {isLogin ? "Sign in to try tools" : "Create an account to access free tools"}
             </p>
           </CardHeader>
           <CardContent>
