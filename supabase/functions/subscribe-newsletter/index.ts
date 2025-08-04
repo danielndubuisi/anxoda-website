@@ -101,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
             <div style="text-align: center; margin: 30px 0;">
               <p style="color: #64748b;">Have questions? We're here to help!</p>
               <p style="font-size: 18px; color: #2563eb; font-weight: bold;">+2349030673128</p>
-              <p style="color: #64748b;">anxoda.business@gmail.com</p>
+              <p style="color: #64748b;">info@anxoda.com</p>
             </div>
 
             <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
@@ -121,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send notification to business
     const businessNotificationResponse = await resend.emails.send({
       from: "Anxoda Newsletter <onboarding@resend.dev>",
-      to: ["anxoda.business@gmail.com"],
+      to: ["info@anxoda.com"],
       subject: "New Newsletter Subscription",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
