@@ -53,7 +53,7 @@ const services = [
 
 const Services = () => {
   return (
-    <section id="services" className="py-12 sm:py-16 lg:py-20 bg-background">
+    <section id="services" className="py-12 sm:py-16 lg:py-20 bg-background" aria-label="Our comprehensive business solutions and services">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16 animate-fade-in">

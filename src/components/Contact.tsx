@@ -119,7 +119,7 @@ const Contact = () => {
     };
 
     return (
-        <section id="contact" className="py-20 bg-gradient-subtle">
+        <section id="contact" className="py-20 bg-gradient-subtle" aria-label="Contact us - Get in touch for digital transformation services">
             <div className="container mx-auto px-4">
                 {/* Header */}
                 <div className="text-center mb-16 animate-fade-in">

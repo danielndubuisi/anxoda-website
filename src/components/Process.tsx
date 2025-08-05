@@ -54,7 +54,7 @@ const processSteps = [
 
 const Process = () => {
   return (
-    <section id="process" className="py-12 sm:py-16 lg:py-20 bg-background">
+    <section id="process" className="py-12 sm:py-16 lg:py-20 bg-background" aria-label="Our proven 6-step digital transformation process">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16 animate-fade-in">
