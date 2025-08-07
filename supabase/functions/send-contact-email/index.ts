@@ -3,68 +3,73 @@ import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+        "authorization, x-client-info, apikey, content-type",
 };
 
 interface ContactEmailRequest {
-  name: string;
-  email: string;
-  company?: string;
-  message: string;
+    name: string;
+    email: string;
+    company?: string;
+    message: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    console.log("Contact email function started");
-    
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
+    // Handle CORS preflight requests
+    if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders });
     }
 
-    const resend = new Resend(resendApiKey);
-    const { name, email, company, message }: ContactEmailRequest = await req.json();
+    try {
+        console.log("Contact email function started");
 
-    console.log("Processing contact form submission:", { name, email, company });
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+        if (!resendApiKey) {
+            throw new Error("RESEND_API_KEY not configured");
+        }
 
-    // Create Supabase client with service role key
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+        const resend = new Resend(resendApiKey);
+        const { name, email, company, message }: ContactEmailRequest =
+            await req.json();
 
-    // Store contact submission in database
-    const { error: dbError } = await supabaseClient
-      .from("contact_submissions")
-      .insert({
-        name,
-        email,
-        company,
-        message,
-        status: "new"
-      });
+        console.log("Processing contact form submission:", {
+            name,
+            email,
+            company,
+        });
 
-    if (dbError) {
-      console.error("Database error:", dbError);
-      throw new Error("Failed to store contact submission");
-    }
+        // Create Supabase client with service role key
+        const supabaseClient = createClient(
+            Deno.env.get("SUPABASE_URL") ?? "",
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+            { auth: { persistSession: false } }
+        );
 
-    console.log("Contact submission stored in database");
+        // Store contact submission in database
+        const { error: dbError } = await supabaseClient
+            .from("contact_submissions")
+            .insert({
+                name,
+                email,
+                company,
+                message,
+                status: "new",
+            });
 
-    // Send email to business
-    const businessEmailResponse = await resend.emails.send({
-      from: "Anxoda Contact Form <onboarding@resend.dev>",
-      to: ["info@anxoda.com"],
-      subject: `New Contact Form Submission from ${name}`,
-      html: `
+        if (dbError) {
+            console.error("Database error:", dbError);
+            throw new Error("Failed to store contact submission");
+        }
+
+        console.log("Contact submission stored in database");
+
+        // Send email to business
+        const businessEmailResponse = await resend.emails.send({
+            from: "Anxoda Contact Form <onboarding@resend.dev>",
+            to: ["info@anxoda.com"],
+            subject: `New Contact Form Submission from ${name}`,
+            html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb;">New Contact Form Submission</h2>
           
@@ -72,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
             <h3 style="margin-top: 0; color: #1e293b;">Contact Details</h3>
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>
-            ${company ? `<p><strong>Company:</strong> ${company}</p>` : ''}
+            ${company ? `<p><strong>Company:</strong> ${company}</p>` : ""}
           </div>
 
           <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -87,16 +92,17 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </div>
       `,
-    });
+        });
 
-    console.log("Business notification email sent:", businessEmailResponse);
+        console.log("Business notification email sent:", businessEmailResponse);
 
-    // Send confirmation email to customer
-    const customerEmailResponse = await resend.emails.send({
-      from: "Anxoda <onboarding@resend.dev>",
-      to: [email],
-      subject: "Thank you for contacting Anxoda - We'll be in touch soon!",
-      html: `
+        // Send confirmation email to customer
+        const customerEmailResponse = await resend.emails.send({
+            from: "Anxoda <onboarding@resend.dev>",
+            to: [email],
+            subject:
+                "Thank you for contacting Anxoda - We'll be in touch soon!",
+            html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="color: white; margin: 0; font-size: 28px;">Thank You, ${name}!</h1>
@@ -118,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
 
             <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1e40af;">Your Message Summary</h3>
-              <p><strong>Company:</strong> ${company || 'Not provided'}</p>
+              <p><strong>Company:</strong> ${company || "Not provided"}</p>
               <p><strong>Message:</strong> ${message}</p>
             </div>
 
@@ -138,38 +144,38 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </div>
       `,
-    });
+        });
 
-    console.log("Customer confirmation email sent:", customerEmailResponse);
+        console.log("Customer confirmation email sent:", customerEmailResponse);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Contact form submitted successfully",
-        businessEmailId: businessEmailResponse.data?.id,
-        customerEmailId: customerEmailResponse.data?.id
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      }
-    );
-  } catch (error: any) {
-    console.error("Error in send-contact-email function:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
-  }
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: "Contact form submitted successfully",
+                businessEmailId: businessEmailResponse.data?.id,
+                customerEmailId: customerEmailResponse.data?.id,
+            }),
+            {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...corsHeaders,
+                },
+            }
+        );
+    } catch (error: any) {
+        console.error("Error in send-contact-email function:", error);
+        return new Response(
+            JSON.stringify({
+                error: error.message,
+                success: false,
+            }),
+            {
+                status: 500,
+                headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+        );
+    }
 };
 
 serve(handler);
