@@ -71,7 +71,8 @@ const About = () => {
     return (
         <section
             id="about"
-            className="py-12 sm:py-16 lg:py-20 bg-gradient-subtle">
+            className="py-12 sm:py-16 lg:py-20 bg-gradient-subtle"
+            aria-label="About Anxoda - Learn about our team and mission">
             <div className="container mx-auto px-4">
                 {/* Header */}
                 <div className="text-center mb-12 sm:mb-16 animate-fade-in">
@@ -170,8 +171,11 @@ const About = () => {
                     <div className="relative animate-scale-in">
                         <img
                             src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop"
-                            alt="African professionals collaborating in a modern office environment"
+                            alt="African professionals collaborating in a modern office environment - Anxoda team working on digital transformation"
                             className="w-full h-auto rounded-2xl shadow-elegant"
+                            loading="lazy"
+                            width="600"
+                            height="400"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent rounded-2xl"></div>
                     </div>
@@ -200,8 +204,11 @@ const About = () => {
                                     <div className="relative w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-6">
                                         <img
                                             src={member.image}
-                                            alt={member.name}
+                                            alt={`${member.name} - ${member.role} at Anxoda`}
                                             className="w-full h-full rounded-full object-cover border-4 border-primary/10 group-hover:border-primary/30 transition-colors"
+                                            loading="lazy"
+                                            width="128"
+                                            height="128"
                                         />
                                     </div>
                                     <h4 className="text-lg sm:text-xl font-bold text-foreground mb-1 sm:mb-2">

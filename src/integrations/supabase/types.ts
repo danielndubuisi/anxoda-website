@@ -104,6 +104,51 @@ export type Database = {
         }
         Relationships: []
       }
+      spreadsheet_reports: {
+        Row: {
+          chart_data: Json | null
+          column_count: number | null
+          created_at: string
+          file_path: string
+          id: string
+          original_filename: string
+          processing_status: string
+          row_count: number | null
+          text_summary: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chart_data?: Json | null
+          column_count?: number | null
+          created_at?: string
+          file_path: string
+          id?: string
+          original_filename: string
+          processing_status?: string
+          row_count?: number | null
+          text_summary?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chart_data?: Json | null
+          column_count?: number | null
+          created_at?: string
+          file_path?: string
+          id?: string
+          original_filename?: string
+          processing_status?: string
+          row_count?: number | null
+          text_summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           created_at: string

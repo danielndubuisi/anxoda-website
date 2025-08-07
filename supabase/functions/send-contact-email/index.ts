@@ -57,6 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
                 status: "new",
             });
 
+<<<<<<< HEAD
         if (dbError) {
             console.error("Database error:", dbError);
             throw new Error("Failed to store contact submission");
@@ -70,6 +71,14 @@ const handler = async (req: Request): Promise<Response> => {
             to: ["info@anxoda.com"],
             subject: `New Contact Form Submission from ${name}`,
             html: `
+=======
+    // Send email to business
+    const businessEmailResponse = await resend.emails.send({
+      from: "Anxoda Contact Form <noreply@anxoda.com>",
+      to: ["info@anxoda.com"],
+      subject: `New Contact Form Submission from ${name}`,
+      html: `
+>>>>>>> 6da978ed537b41e27c7e2d250e8931012dd71902
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb;">New Contact Form Submission</h2>
           
@@ -96,6 +105,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log("Business notification email sent:", businessEmailResponse);
 
+<<<<<<< HEAD
         // Send confirmation email to customer
         const customerEmailResponse = await resend.emails.send({
             from: "Anxoda <onboarding@resend.dev>",
@@ -103,6 +113,14 @@ const handler = async (req: Request): Promise<Response> => {
             subject:
                 "Thank you for contacting Anxoda - We'll be in touch soon!",
             html: `
+=======
+    // Send confirmation email to customer
+    const customerEmailResponse = await resend.emails.send({
+      from: "Anxoda <noreply@anxoda.com>",
+      to: [email],
+      subject: "Thank you for contacting Anxoda - We'll be in touch soon!",
+      html: `
+>>>>>>> 6da978ed537b41e27c7e2d250e8931012dd71902
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="color: white; margin: 0; font-size: 28px;">Thank You, ${name}!</h1>

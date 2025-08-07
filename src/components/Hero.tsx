@@ -30,7 +30,8 @@ const Hero = () => {
     return (
         <section
             id="home"
-            className="relative min-h-screen bg-gradient-subtle overflow-hidden">
+            className="relative min-h-screen bg-gradient-subtle overflow-hidden"
+            aria-label="Hero section - Transform your business with AI-powered solutions">
             {/* Background Pattern */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent"></div>
 
@@ -136,9 +137,11 @@ const Hero = () => {
                             <iframe
                                 className="w-full h-full rounded-2xl"
                                 src="https://www.youtube.com/embed/i436UAbhMoI?rel=0&modestbranding=1"
-                                title="Anxoda Demo Video"
+                                title="Anxoda Business Intelligence Demo - AI-Powered Solutions"
+                                loading="lazy"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen></iframe>
+                                allowFullScreen
+                                aria-label="Anxoda business intelligence demonstration video"></iframe>
 
                             {/* Optional gradient overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-2xl pointer-events-none"></div>

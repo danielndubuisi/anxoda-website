@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
+import { ReportList } from "@/components/ReportList";
+import { ReportViewer } from "@/components/ReportViewer";
+import { DemoDataUploader } from "@/components/DemoDataUploader";
 import {
   User,
   Building2,
@@ -22,7 +26,8 @@ import {
   TrendingUp,
   Users,
   FileText,
-  Mail
+  Mail,
+  FileSpreadsheet
 } from "lucide-react";
 
 interface Profile {
@@ -52,6 +57,8 @@ const Dashboard = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -200,8 +207,12 @@ const Dashboard = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analyzer">
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Spreadsheet Analyzer
+            </TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -304,6 +315,63 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="analyzer" className="space-y-6">
+            {selectedReportId ? (
+              <ReportViewer 
+                reportId={selectedReportId} 
+                onBack={() => setSelectedReportId(null)} 
+              />
+            ) : (
+              <>
+                <div className="text-center mb-8">
+                  <div className="relative mb-6">
+                    <img 
+                      src="/src/assets/spreadsheet-analyzer-demo.jpg" 
+                      alt="AI Spreadsheet Analyzer Dashboard" 
+                      className="mx-auto rounded-lg shadow-lg w-full max-w-2xl h-48 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-primary/5 rounded-lg flex items-center justify-center">
+                      <FileSpreadsheet className="h-12 w-12 text-primary" />
+                    </div>
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">AI Spreadsheet Analyzer</h2>
+                  <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+                    Upload your CSV or Excel files and get AI-powered insights with automatic data analysis, intelligent chart generation, and comprehensive business intelligence reports.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Upload Your Spreadsheet</h3>
+                      <SpreadsheetUploader 
+                        onUploadSuccess={(reportId) => {
+                          setRefreshTrigger(prev => prev + 1);
+                        }} 
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Try Demo Data</h3>
+                      <DemoDataUploader 
+                        onUploadSuccess={(reportId) => {
+                          setRefreshTrigger(prev => prev + 1);
+                        }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Your Reports</h3>
+                    <ReportList 
+                      onViewReport={setSelectedReportId}
+                      refreshTrigger={refreshTrigger}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6">

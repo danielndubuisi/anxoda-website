@@ -1,14 +1,26 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+
+# Sitemap
+Sitemap: https://www.anxoda.com/sitemap.xml
+
+# Crawl delay for respectful indexing
+Crawl-delay: 1
+
+# Allow access to CSS and JS files
+Allow: /assets/
+Allow: /*.css
+Allow: /*.js
+
+# Block access to admin areas (if any)
+Disallow: /admin/
+Disallow: /dashboard/
+
+# Allow search engines to index main content
+Allow: /
+Allow: /about-us
+Allow: /case-studies
+Allow: /blog
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
