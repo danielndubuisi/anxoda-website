@@ -155,31 +155,31 @@ export const ReportList: React.FC<ReportListProps> = ({ onViewReport, refreshTri
     <div className="space-y-4">
       {reports.map((report) => (
         <Card key={report.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <FileSpreadsheet className="h-6 w-6 text-primary" />
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                <div className="p-2 sm:p-3 bg-primary/10 rounded-lg flex-shrink-0">
+                  <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg">{report.title}</h3>
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-base sm:text-lg truncate">{report.title}</h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs sm:text-sm text-muted-foreground mt-1 space-y-1 sm:space-y-0">
                     <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatDistanceToNow(new Date(report.created_at), { addSuffix: true })}</span>
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{formatDistanceToNow(new Date(report.created_at), { addSuffix: true })}</span>
                     </div>
                     {report.row_count && report.column_count && (
                       <div className="flex items-center space-x-1">
-                        <BarChart className="h-3 w-3" />
-                        <span>{report.row_count} rows, {report.column_count} columns</span>
+                        <BarChart className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{report.row_count} rows, {report.column_count} columns</span>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3">
-                <Badge variant={getStatusColor(report.processing_status)}>
+              <div className="flex items-center justify-between sm:justify-end space-x-3 flex-shrink-0">
+                <Badge variant={getStatusColor(report.processing_status)} className="text-xs">
                   {getStatusText(report.processing_status)}
                 </Badge>
                 
@@ -189,8 +189,10 @@ export const ReportList: React.FC<ReportListProps> = ({ onViewReport, refreshTri
                       variant="outline"
                       size="sm"
                       onClick={() => onViewReport(report.id)}
+                      className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
                     >
                       <Eye className="h-4 w-4" />
+                      <span className="sr-only sm:not-sr-only sm:ml-2">View</span>
                     </Button>
                   )}
                   
@@ -199,8 +201,10 @@ export const ReportList: React.FC<ReportListProps> = ({ onViewReport, refreshTri
                     size="sm"
                     onClick={() => deleteReport(report.id)}
                     disabled={deleting === report.id}
+                    className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
                   >
                     <Trash2 className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:ml-2">Delete</span>
                   </Button>
                 </div>
               </div>

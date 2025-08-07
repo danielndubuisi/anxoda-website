@@ -79,11 +79,15 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ reportId, onBack }) 
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey={chartConfig.type === 'line' ? 'index' : 'name'} 
-                fontSize={12}
+                fontSize={10}
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+                interval={0}
               />
               <YAxis 
-                fontSize={12}
+                fontSize={10}
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
               />
               <Tooltip 
@@ -91,6 +95,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ reportId, onBack }) 
                   backgroundColor: 'hsl(var(--background))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: 'var(--radius)',
+                  fontSize: '12px'
                 }}
               />
               {chartConfig.type === 'line' ? (
@@ -102,7 +107,11 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ reportId, onBack }) 
                   dot={{ fill: 'hsl(var(--primary))' }}
                 />
               ) : (
-                <Bar dataKey="count" fill="hsl(var(--primary))" />
+                <Bar 
+                  dataKey={chartConfig.data[0]?.count !== undefined ? "count" : 
+                          chartConfig.data[0]?.average !== undefined ? "average" : "value"} 
+                  fill="hsl(var(--primary))" 
+                />
               )}
             </ChartComponent>
           </ResponsiveContainer>
@@ -165,7 +174,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ reportId, onBack }) 
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-3">
@@ -236,7 +245,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ reportId, onBack }) 
           <Separator />
           <div>
             <h2 className="text-xl font-bold mb-6">Data Visualizations</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
               {report.chart_data.map((chartConfig, index) => renderChart(chartConfig, index))}
             </div>
           </div>

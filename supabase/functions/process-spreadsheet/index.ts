@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
+import * as XLSX from 'https://esm.sh/xlsx@0.20.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -131,24 +132,37 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
       throw new Error('Failed to download file for processing');
     }
 
-    // Convert file to text for basic analysis (simplified for MVP)
+    // Parse spreadsheet data using XLSX
     const fileBuffer = await fileData.arrayBuffer();
-    const fileText = new TextDecoder().decode(fileBuffer);
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
     
-    // Basic CSV analysis
-    const lines = fileText.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const dataRows = lines.slice(1);
+    // Convert to JSON with headers
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     
+    if (jsonData.length === 0) {
+      throw new Error('No data found in spreadsheet');
+    }
+    
+    const headers = jsonData[0] as string[];
+    const dataRows = jsonData.slice(1);
     const rowCount = dataRows.length;
     const columnCount = headers.length;
 
-    // Generate basic statistics
+    // Analyze data types and patterns
+    const columnAnalysis = analyzeColumns(headers, dataRows);
+    
+    // Generate comprehensive statistics
     const stats = {
       totalRows: rowCount,
       totalColumns: columnCount,
       columns: headers,
-      sampleData: dataRows.slice(0, 3).map(row => row.split(',').map(cell => cell.trim().replace(/"/g, '')))
+      columnTypes: columnAnalysis.types,
+      sampleData: dataRows.slice(0, 5),
+      numericColumns: columnAnalysis.numeric,
+      categoricalColumns: columnAnalysis.categorical,
+      dateColumns: columnAnalysis.dates
     };
 
     // Call OpenAI for summary (if API key is available)
@@ -211,37 +225,8 @@ Please provide a comprehensive analysis including:
       }
     }
 
-    // Generate chart data (simplified for MVP)
-    const chartData = [];
-    
-    // Create a simple column distribution chart
-    chartData.push({
-      type: 'bar',
-      title: 'Column Distribution',
-      data: headers.map((header, index) => ({
-        name: header,
-        value: index + 1,
-        count: rowCount
-      }))
-    });
-
-    // If there are numeric-looking columns, create a sample chart
-    const numericColumns = headers.filter(header => 
-      !header.toLowerCase().includes('id') && 
-      !header.toLowerCase().includes('name') &&
-      !header.toLowerCase().includes('email')
-    );
-
-    if (numericColumns.length > 0) {
-      chartData.push({
-        type: 'line',
-        title: 'Data Overview',
-        data: Array.from({ length: Math.min(10, rowCount) }, (_, i) => ({
-          index: i + 1,
-          value: Math.floor(Math.random() * 100) + 1
-        }))
-      });
-    }
+    // Generate intelligent chart data based on actual data
+    const chartData = generateCharts(headers, dataRows, columnAnalysis);
 
     // Update report in database
     const { error: updateError } = await supabase
@@ -273,4 +258,151 @@ Please provide a comprehensive analysis including:
       })
       .eq('id', reportId);
   }
+}
+
+// Helper function to analyze column types and patterns
+function analyzeColumns(headers: string[], dataRows: any[]) {
+  const analysis = {
+    types: {} as Record<string, string>,
+    numeric: [] as string[],
+    categorical: [] as string[],
+    dates: [] as string[]
+  };
+
+  headers.forEach((header, colIndex) => {
+    const values = dataRows.map(row => row[colIndex]).filter(val => val != null && val !== '');
+    
+    if (values.length === 0) {
+      analysis.types[header] = 'empty';
+      return;
+    }
+
+    // Check for numeric data
+    const numericValues = values.filter(val => !isNaN(Number(val)) && val !== '').length;
+    const numericRatio = numericValues / values.length;
+
+    // Check for date data
+    const dateValues = values.filter(val => {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && val.toString().match(/\d{4}|\d{1,2}\/\d{1,2}/);
+    }).length;
+    const dateRatio = dateValues / values.length;
+
+    if (dateRatio > 0.7) {
+      analysis.types[header] = 'date';
+      analysis.dates.push(header);
+    } else if (numericRatio > 0.7) {
+      analysis.types[header] = 'numeric';
+      analysis.numeric.push(header);
+    } else {
+      analysis.types[header] = 'categorical';
+      analysis.categorical.push(header);
+    }
+  });
+
+  return analysis;
+}
+
+// Helper function to generate intelligent charts
+function generateCharts(headers: string[], dataRows: any[], columnAnalysis: any) {
+  const charts = [];
+
+  // 1. Data Overview Chart
+  if (columnAnalysis.numeric.length > 0) {
+    const firstNumericCol = columnAnalysis.numeric[0];
+    const colIndex = headers.indexOf(firstNumericCol);
+    const values = dataRows.map(row => Number(row[colIndex])).filter(val => !isNaN(val));
+    
+    if (values.length > 0) {
+      const sampleSize = Math.min(20, values.length);
+      const sampledData = values.slice(0, sampleSize).map((value, index) => ({
+        index: index + 1,
+        value: value,
+        label: `Row ${index + 1}`
+      }));
+
+      charts.push({
+        type: 'line',
+        title: `${firstNumericCol} Trend`,
+        data: sampledData
+      });
+    }
+  }
+
+  // 2. Category Distribution Chart
+  if (columnAnalysis.categorical.length > 0) {
+    const firstCatCol = columnAnalysis.categorical[0];
+    const colIndex = headers.indexOf(firstCatCol);
+    const values = dataRows.map(row => row[colIndex]).filter(val => val != null && val !== '');
+    
+    // Count occurrences
+    const counts = values.reduce((acc: Record<string, number>, val) => {
+      const key = String(val).substring(0, 20); // Limit label length
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Take top 10 categories
+    const sortedCounts = Object.entries(counts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10);
+
+    if (sortedCounts.length > 0) {
+      charts.push({
+        type: 'bar',
+        title: `${firstCatCol} Distribution`,
+        data: sortedCounts.map(([name, count]) => ({
+          name,
+          count,
+          value: count
+        }))
+      });
+    }
+  }
+
+  // 3. Summary Statistics Chart
+  if (columnAnalysis.numeric.length > 1) {
+    const statsData = columnAnalysis.numeric.slice(0, 5).map(colName => {
+      const colIndex = headers.indexOf(colName);
+      const values = dataRows.map(row => Number(row[colIndex])).filter(val => !isNaN(val));
+      
+      if (values.length === 0) return null;
+      
+      const sum = values.reduce((a, b) => a + b, 0);
+      const avg = sum / values.length;
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+
+      return {
+        name: colName.substring(0, 15),
+        average: Math.round(avg * 100) / 100,
+        maximum: max,
+        minimum: min,
+        count: values.length
+      };
+    }).filter(Boolean);
+
+    if (statsData.length > 0) {
+      charts.push({
+        type: 'bar',
+        title: 'Numeric Columns Summary',
+        data: statsData
+      });
+    }
+  }
+
+  // Ensure we have at least one chart
+  if (charts.length === 0) {
+    charts.push({
+      type: 'bar',
+      title: 'Data Overview',
+      data: headers.slice(0, 10).map((header, index) => ({
+        name: header.substring(0, 15),
+        count: dataRows.length,
+        value: dataRows.length
+      }))
+    });
+  }
+
+  return charts;
 }

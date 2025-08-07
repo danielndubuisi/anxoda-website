@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
+import { DemoDataUploader } from "@/components/DemoDataUploader";
 import {
   User,
   Building2,
@@ -324,23 +325,41 @@ const Dashboard = () => {
               />
             ) : (
               <>
-                <div className="text-center">
-                  <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <div className="text-center mb-8">
+                  <div className="relative mb-6">
+                    <img 
+                      src="/src/assets/spreadsheet-analyzer-demo.jpg" 
+                      alt="AI Spreadsheet Analyzer Dashboard" 
+                      className="mx-auto rounded-lg shadow-lg w-full max-w-2xl h-48 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-primary/5 rounded-lg flex items-center justify-center">
+                      <FileSpreadsheet className="h-12 w-12 text-primary" />
+                    </div>
+                  </div>
                   <h2 className="text-2xl font-bold mb-2">AI Spreadsheet Analyzer</h2>
                   <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-                    Upload your CSV or Excel files and get AI-powered insights with automatic data analysis and visualizations.
+                    Upload your CSV or Excel files and get AI-powered insights with automatic data analysis, intelligent chart generation, and comprehensive business intelligence reports.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Upload New Spreadsheet</h3>
-                    <SpreadsheetUploader 
-                      onUploadSuccess={(reportId) => {
-                        setRefreshTrigger(prev => prev + 1);
-                        setActiveTab("analyzer");
-                      }} 
-                    />
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Upload Your Spreadsheet</h3>
+                      <SpreadsheetUploader 
+                        onUploadSuccess={(reportId) => {
+                          setRefreshTrigger(prev => prev + 1);
+                        }} 
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Try Demo Data</h3>
+                      <DemoDataUploader 
+                        onUploadSuccess={(reportId) => {
+                          setRefreshTrigger(prev => prev + 1);
+                        }} 
+                      />
+                    </div>
                   </div>
 
                   <div>
