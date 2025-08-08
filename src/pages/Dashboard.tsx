@@ -13,6 +13,7 @@ import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
 import { DemoDataUploader } from "@/components/DemoDataUploader";
+import { QuestionInput } from "@/components/QuestionInput";
 import {
   User,
   Building2,
@@ -59,6 +60,8 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [analysisQuestion, setAnalysisQuestion] = useState<string | undefined>(undefined);
+  const [showUploader, setShowUploader] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -343,24 +346,40 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Upload Your Spreadsheet</h3>
-                      <SpreadsheetUploader 
-                        onUploadSuccess={(reportId) => {
-                          setRefreshTrigger(prev => prev + 1);
-                        }} 
-                      />
+                  <QuestionInput 
+                    onQuestionSubmit={(question) => {
+                      setAnalysisQuestion(question);
+                      setShowUploader(true);
+                    }}
+                    isProcessing={false}
+                  />
+                  
+                  {showUploader && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Upload Your Spreadsheet</h3>
+                        <SpreadsheetUploader 
+                          question={analysisQuestion}
+                          onUploadSuccess={(reportId) => {
+                            setRefreshTrigger(prev => prev + 1);
+                            setShowUploader(false);
+                            setAnalysisQuestion(undefined);
+                          }} 
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Try Demo Data</h3>
+                        <DemoDataUploader 
+                          question={analysisQuestion}
+                          onUploadSuccess={(reportId) => {
+                            setRefreshTrigger(prev => prev + 1);
+                            setShowUploader(false);
+                            setAnalysisQuestion(undefined);
+                          }} 
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Try Demo Data</h3>
-                      <DemoDataUploader 
-                        onUploadSuccess={(reportId) => {
-                          setRefreshTrigger(prev => prev + 1);
-                        }} 
-                      />
-                    </div>
-                  </div>
+                  )}
 
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Your Reports</h3>
