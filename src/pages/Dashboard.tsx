@@ -13,6 +13,7 @@ import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
 import { DemoDataUploader } from "@/components/DemoDataUploader";
+import { QuestionInput } from "@/components/QuestionInput";
 import {
     User,
     Building2,
@@ -50,6 +51,7 @@ interface Subscription {
 }
 
 const Dashboard = () => {
+<<<<<<< HEAD
     const { user, signOut, loading } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
@@ -60,6 +62,131 @@ const Dashboard = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [selectedReportId, setSelectedReportId] = useState<string | null>(
         null
+=======
+  const { user, signOut, loading } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [analysisQuestion, setAnalysisQuestion] = useState<string | undefined>(undefined);
+  const [showUploader, setShowUploader] = useState(false);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  // Fetch user profile and subscription
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchSubscription();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setProfile(data);
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const fetchSubscription = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setSubscription(data);
+    } catch (error: any) {
+      console.error('Error fetching subscription:', error);
+    }
+  };
+
+  const updateProfile = async (updatedData: Partial<Profile>) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user?.id,
+          ...updatedData
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile updated successfully",
+        description: "Your profile information has been saved."
+      });
+
+      fetchProfile();
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  const getPlanIcon = (plan: string) => {
+    switch (plan) {
+      case 'basic': return <Shield className="w-5 h-5" />;
+      case 'premium': return <Crown className="w-5 h-5" />;
+      case 'enterprise': return <Sparkles className="w-5 h-5" />;
+      default: return <User className="w-5 h-5" />;
+    }
+  };
+
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'basic': return 'bg-blue-500';
+      case 'premium': return 'bg-purple-500';
+      case 'enterprise': return 'bg-gold-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+>>>>>>> c8adc0c9c7fcc4672702d3fd651dfc29824f3f61
     );
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -122,7 +249,45 @@ const Dashboard = () => {
                 ...updatedData,
             });
 
+<<<<<<< HEAD
             if (error) throw error;
+=======
+                <div className="space-y-6">
+                  <QuestionInput 
+                    onQuestionSubmit={(question) => {
+                      setAnalysisQuestion(question);
+                      setShowUploader(true);
+                    }}
+                    isProcessing={false}
+                  />
+                  
+                  {showUploader && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Upload Your Spreadsheet</h3>
+                        <SpreadsheetUploader 
+                          question={analysisQuestion}
+                          onUploadSuccess={(reportId) => {
+                            setRefreshTrigger(prev => prev + 1);
+                            setShowUploader(false);
+                            setAnalysisQuestion(undefined);
+                          }} 
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Try Demo Data</h3>
+                        <DemoDataUploader 
+                          question={analysisQuestion}
+                          onUploadSuccess={(reportId) => {
+                            setRefreshTrigger(prev => prev + 1);
+                            setShowUploader(false);
+                            setAnalysisQuestion(undefined);
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  )}
+>>>>>>> c8adc0c9c7fcc4672702d3fd651dfc29824f3f61
 
             toast({
                 title: "Profile updated successfully",

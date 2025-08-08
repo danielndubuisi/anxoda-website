@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
-import * as XLSX from 'https://esm.sh/xlsx@0.20.2';
+import * as XLSX from 'https://deno.land/x/sheetjs@v0.18.3/xlsx.mjs';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +38,8 @@ serve(async (req) => {
     const file = formData.get('file') as File;
     const filename = formData.get('filename') as string;
 
+    const question = formData.get('question') as string;
+    
     if (!file || !filename) {
       throw new Error('File and filename are required');
     }
@@ -93,7 +95,7 @@ serve(async (req) => {
     }
 
     // Start background processing
-    EdgeRuntime.waitUntil(processSpreadsheet(report.id, filePath, supabase));
+    EdgeRuntime.waitUntil(processSpreadsheet(report.id, filePath, supabase, question));
 
     return new Response(
       JSON.stringify({ 
@@ -119,7 +121,7 @@ serve(async (req) => {
   }
 });
 
-async function processSpreadsheet(reportId: string, filePath: string, supabase: any) {
+async function processSpreadsheet(reportId: string, filePath: string, supabase: any, userQuestion?: string) {
   try {
     console.log(`Starting processing for report ${reportId}`);
 
@@ -129,24 +131,26 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
       .download(filePath);
 
     if (downloadError) {
+      console.error('File download error:', downloadError);
       throw new Error('Failed to download file for processing');
     }
 
     // Parse spreadsheet data using XLSX
     const fileBuffer = await fileData.arrayBuffer();
-    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    const workbook = XLSX.read(fileBuffer, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     
-    // Convert to JSON with headers
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    // Convert to JSON with headers, ensuring we handle various formats
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
     
     if (jsonData.length === 0) {
       throw new Error('No data found in spreadsheet');
     }
     
-    const headers = jsonData[0] as string[];
-    const dataRows = jsonData.slice(1);
+    // Clean headers and ensure they're strings
+    const headers = (jsonData[0] as any[]).map((h, i) => h ? String(h).trim() : `Column ${i + 1}`);
+    const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && cell !== ''));
     const rowCount = dataRows.length;
     const columnCount = headers.length;
 
@@ -188,32 +192,36 @@ This is a basic analysis. For more detailed insights, consider reviewing the dat
             'Authorization': `Bearer ${openaiApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are a data analyst. Analyze the provided spreadsheet data and generate a clear, business-focused summary with key insights and recommendations.'
-              },
-              {
-                role: 'user',
-                content: `Analyze this spreadsheet data:
-                
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a data analyst. Analyze the provided spreadsheet data and generate a clear, business-focused summary with key insights and recommendations.'
+                },
+                {
+                  role: 'user',
+                  content: `Analyze this spreadsheet data:
+                  
+${userQuestion ? `User's specific question: "${userQuestion}"` : ''}
+
 Filename: ${filePath.split('/').pop()}
 Row Count: ${rowCount}
 Column Count: ${columnCount}
 Columns: ${headers.join(', ')}
 Sample Data (first 3 rows): ${JSON.stringify(stats.sampleData)}
 
-Please provide a comprehensive analysis including:
+${userQuestion ? 
+  `Please focus your analysis on answering the user's question: "${userQuestion}". Also provide:` :
+  `Please provide a comprehensive analysis including:`}
 1. Overview of the data structure
 2. Key patterns or insights you can identify
 3. Potential business applications
 4. Recommendations for further analysis`
-              }
-            ],
-            max_tokens: 1000
-          }),
+                }
+              ],
+              max_tokens: 1000
+            }),
         });
 
         if (aiResponse.ok) {

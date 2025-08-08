@@ -10,9 +10,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface SpreadsheetUploaderProps {
   onUploadSuccess: (reportId: string) => void;
+  question?: string;
 }
 
-export const SpreadsheetUploader: React.FC<SpreadsheetUploaderProps> = ({ onUploadSuccess }) => {
+export const SpreadsheetUploader: React.FC<SpreadsheetUploaderProps> = ({ onUploadSuccess, question }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,9 @@ export const SpreadsheetUploader: React.FC<SpreadsheetUploaderProps> = ({ onUplo
       const formData = new FormData();
       formData.append('file', file);
       formData.append('filename', file.name);
+      if (question) {
+        formData.append('question', question);
+      }
 
       // Upload to edge function
       const response = await fetch(`https://pjevyfyvrgvjgspxfikd.supabase.co/functions/v1/process-spreadsheet`, {

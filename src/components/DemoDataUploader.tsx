@@ -7,9 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface DemoDataUploaderProps {
   onUploadSuccess: (reportId: string) => void;
+  question?: string;
 }
 
-export const DemoDataUploader: React.FC<DemoDataUploaderProps> = ({ onUploadSuccess }) => {
+export const DemoDataUploader: React.FC<DemoDataUploaderProps> = ({ onUploadSuccess, question }) => {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
@@ -61,6 +62,9 @@ export const DemoDataUploader: React.FC<DemoDataUploaderProps> = ({ onUploadSucc
       const formData = new FormData();
       formData.append('file', file);
       formData.append('filename', 'demo_sales_data.csv');
+      if (question) {
+        formData.append('question', question);
+      }
 
       const response = await fetch(`https://pjevyfyvrgvjgspxfikd.supabase.co/functions/v1/process-spreadsheet`, {
         method: 'POST',
