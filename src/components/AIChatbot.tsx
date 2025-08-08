@@ -219,28 +219,28 @@ const AIChatbot = () => {
     return (
         <>
             {/* Chat Button */}
-        {!isOpen && (
-            <div className="fixed bottom-6 right-6 flex flex-col items-end z-50 group">
-                {/* Thinking box above icon, with pulse, stem to the right */}
-                <div className="relative mb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="bg-background/95 backdrop-blur-sm border border-border shadow-lg rounded-lg px-4 py-2 text-sm text-foreground font-medium min-w-[140px] text-left">
-                        Ask me anything
+            {!isOpen && (
+                <div className="fixed bottom-6 right-6 flex flex-col items-end z-50">
+                    {/* Always visible thinking box above icon, with pulse, stem to the right */}
+                    <div className="relative mb-3 animate-pulse">
+                        <div className="bg-background/95 backdrop-blur-sm border border-border shadow-lg rounded-lg px-4 py-2 text-sm text-foreground font-medium min-w-[140px] text-left">
+                            Ask me anything
+                        </div>
+                        {/* Speech bubble stem at bottom right */}
+                        <span className="absolute -bottom-2 right-4 w-0 h-0 border-t-[10px] border-t-background border-x-[8px] border-x-transparent border-b-0"></span>
+                        <span
+                            className="absolute -bottom-2 right-4 w-0 h-0 border-t-[10px] border-t-border border-x-[8px] border-x-transparent border-b-0 z-[-1]"
+                            style={{ right: "1.15rem", zIndex: 0 }}></span>
                     </div>
-                    {/* Speech bubble stem at bottom right */}
-                    <span className="absolute -bottom-2 right-4 w-0 h-0 border-t-[10px] border-t-background border-x-[8px] border-x-transparent border-b-0"></span>
-                    <span
-                        className="absolute -bottom-2 right-4 w-0 h-0 border-t-[10px] border-t-border border-x-[8px] border-x-transparent border-b-0 z-[-1]"
-                        style={{ right: "1.15rem", zIndex: 0 }}></span>
+                    <Button
+                        onClick={() => setIsOpen(true)}
+                        className="h-14 w-14 rounded-full shadow-glow hover:shadow-elegant transition-all duration-300"
+                        size="icon"
+                        aria-label="Open AI Assistant - Ask me anything">
+                        <MessageCircle className="w-6 h-6" />
+                    </Button>
                 </div>
-                <Button
-                    onClick={() => setIsOpen(true)}
-                    className="h-14 w-14 rounded-full shadow-glow hover:shadow-elegant transition-all duration-300"
-                    size="icon"
-                    aria-label="Open AI Assistant - Ask me anything">
-                    <MessageCircle className="w-6 h-6" />
-                </Button>
-            </div>
-        )}
+            )}
 
             {/* Chat Window */}
             {isOpen && (
