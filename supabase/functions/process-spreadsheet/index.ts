@@ -44,14 +44,18 @@ serve(async (req) => {
       throw new Error('File and filename are required');
     }
 
-    // Validate file type
+    // Validate file type - allow via MIME or extension fallback
     const allowedTypes = [
       'text/csv',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
     
-    if (!allowedTypes.includes(file.type)) {
+    const fileExt = filename.split('.').pop()?.toLowerCase();
+    const allowedExts = ['csv', 'xls', 'xlsx'];
+    const typeAllowed = file?.type ? allowedTypes.includes(file.type) : false;
+    const extAllowed = fileExt ? allowedExts.includes(fileExt) : false;
+    if (!typeAllowed && !extAllowed) {
       throw new Error('Invalid file type. Only CSV and Excel files are allowed.');
     }
 

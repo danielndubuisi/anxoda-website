@@ -51,7 +51,6 @@ interface Subscription {
 }
 
 const Dashboard = () => {
-<<<<<<< HEAD
     const { user, signOut, loading } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
@@ -60,20 +59,9 @@ const Dashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("analyzer");
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [selectedReportId, setSelectedReportId] = useState<string | null>(
-        null
-=======
-  const { user, signOut, loading } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [analysisQuestion, setAnalysisQuestion] = useState<string | undefined>(undefined);
-  const [showUploader, setShowUploader] = useState(false);
+    const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [analysisQuestion, setAnalysisQuestion] = useState<string | undefined>(undefined);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -689,12 +677,17 @@ const Dashboard = () => {
                                 </div>
 
                                 <div className="space-y-6">
+                                    <QuestionInput 
+                                      onQuestionSubmit={(question) => setAnalysisQuestion(question || undefined)} 
+                                      isProcessing={false} 
+                                    />
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         <div>
                                             <h3 className="text-lg font-semibold mb-4">
                                                 Upload Your Spreadsheet
                                             </h3>
                                             <SpreadsheetUploader
+                                                question={analysisQuestion}
                                                 onUploadSuccess={(reportId) => {
                                                     setRefreshTrigger(
                                                         (prev) => prev + 1
@@ -707,6 +700,7 @@ const Dashboard = () => {
                                                 Try Demo Data
                                             </h3>
                                             <DemoDataUploader
+                                                question={analysisQuestion}
                                                 onUploadSuccess={(reportId) => {
                                                     setRefreshTrigger(
                                                         (prev) => prev + 1
