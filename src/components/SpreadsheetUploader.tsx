@@ -78,7 +78,7 @@ export const SpreadsheetUploader: React.FC<SpreadsheetUploaderProps> = ({ onUplo
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 2000);
     }
-  }, [onUploadSuccess, toast]);
+  }, [onUploadSuccess, toast, question]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
