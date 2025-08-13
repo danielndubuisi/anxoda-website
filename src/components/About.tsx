@@ -53,7 +53,7 @@ const teamMembers = [
         name: "Daniel Ndubuisi",
         role: "CTO & Co-Founder",
         bio: "Expert in AI solutions and software development with a focus on business transformation.",
-        image: "https://media.licdn.com/dms/image/v2/D4D03AQH1fHoEjRglyA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1686343884759?e=1756339200&v=beta&t=ceWNTBDMbMnrl9171ipZSiLzATKzsmbct0QTHTja1KE",
+        image: "https://media.licdn.com/dms/image/v2/D4D03AQF8ceYD-Fb3PA/profile-displayphoto-shrink_800_800/B4DZiIfN16HwAc-/0/1754636544650?e=1758153600&v=beta&t=O6wjhJV03P8CEdOOKxHmRW3i0oCWf7wYRCrVetqjx0I",
         linkedin: "https://www.linkedin.com/in/pharmadevdaniel",
         email: "ndubeansdaniel97@gmail.com",
     },
