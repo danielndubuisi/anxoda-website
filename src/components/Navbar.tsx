@@ -91,7 +91,7 @@ const Navbar = () => {
             </div>
 
             {/* Main Navbar */}
-            <nav className="bg-background shadow-card sticky top-0 z-50">
+            <nav className="bg-background shadow-card sticky top-5 z-50">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center h-14 sm:h-16">
                         <Link
