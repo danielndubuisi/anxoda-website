@@ -44,14 +44,18 @@ serve(async (req) => {
       throw new Error('File and filename are required');
     }
 
-    // Validate file type
+    // Validate file type - allow via MIME or extension fallback
     const allowedTypes = [
       'text/csv',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
     
-    if (!allowedTypes.includes(file.type)) {
+    const fileExt = filename.split('.').pop()?.toLowerCase();
+    const allowedExts = ['csv', 'xls', 'xlsx'];
+    const typeAllowed = file?.type ? allowedTypes.includes(file.type) : false;
+    const extAllowed = fileExt ? allowedExts.includes(fileExt) : false;
+    if (!typeAllowed && !extAllowed) {
       throw new Error('Invalid file type. Only CSV and Excel files are allowed.');
     }
 
@@ -192,41 +196,66 @@ This is a basic analysis. For more detailed insights, consider reviewing the dat
             'Authorization': `Bearer ${openaiApiKey}`,
             'Content-Type': 'application/json',
           },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are a data analyst. Analyze the provided spreadsheet data and generate a clear, business-focused summary with key insights and recommendations.'
-                },
-                {
-                  role: 'user',
-                  content: `Analyze this spreadsheet data:
-                  
-${userQuestion ? `User's specific question: "${userQuestion}"` : ''}
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `You are the Auto Spreadsheet Summarizer (ASS). Given a spreadsheet and a KPI request, do the following:
 
-Filename: ${filePath.split('/').pop()}
-Row Count: ${rowCount}
-Column Count: ${columnCount}
-Columns: ${headers.join(', ')}
-Sample Data (first 3 rows): ${JSON.stringify(stats.sampleData)}
+1. Analyze the dataset to fully answer the KPI request.
+2. Identify 2–5 additional KPIs that could be relevant.
+3. Output results in JSON format with three sections:
+   {
+     "keyFindings": ["Main insight 1", "Main insight 2", "Main insight 3"],
+     "additionalKPIs": ["KPI 1: Description", "KPI 2: Description"],
+     "recommendations": ["Action 1", "Action 2", "Action 3"]
+   }
+4. Keep answers accurate, clear, and professional.
+5. Focus on actionable business insights and data-driven recommendations.`
+              },
+              {
+                role: 'user',
+                content: `Analyze this spreadsheet data:
+                
+${userQuestion ? `User's KPI request: "${userQuestion}"` : 'General analysis requested'}
+
+Dataset Overview:
+- Filename: ${filePath.split('/').pop()}
+- Row Count: ${rowCount}
+- Column Count: ${columnCount}
+- Columns: ${headers.join(', ')}
+- Numeric Columns: ${columnAnalysis.numeric.join(', ') || 'None'}
+- Categorical Columns: ${columnAnalysis.categorical.join(', ') || 'None'}
+- Date Columns: ${columnAnalysis.dates.join(', ') || 'None'}
+- Sample Data: ${JSON.stringify(stats.sampleData.slice(0, 3))}
 
 ${userQuestion ? 
-  `Please focus your analysis on answering the user's question: "${userQuestion}". Also provide:` :
-  `Please provide a comprehensive analysis including:`}
-1. Overview of the data structure
-2. Key patterns or insights you can identify
-3. Potential business applications
-4. Recommendations for further analysis`
-                }
-              ],
-              max_tokens: 1000
-            }),
+  `Focus your analysis on the KPI request: "${userQuestion}"` :
+  'Provide a comprehensive business analysis of this dataset'}
+
+Return structured JSON analysis as specified.`
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000
+          }),
         });
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
-          textSummary = aiData.choices[0].message.content;
+          try {
+            // Try to parse as JSON first
+            textSummary = JSON.parse(aiData.choices[0].message.content);
+          } catch (parseError) {
+            // Fallback to structured format if JSON parsing fails
+            const content = aiData.choices[0].message.content;
+            textSummary = {
+              keyFindings: [content],
+              additionalKPIs: [],
+              recommendations: ["Consider reviewing the data structure for better insights."]
+            };
+          }
         }
       } catch (aiError) {
         console.error('OpenAI API error:', aiError);
@@ -253,11 +282,26 @@ ${userQuestion ?
     }
 
     console.log(`Successfully processed report ${reportId}`);
+    
+    // Clean up uploaded file after successful processing
+    try {
+      const { error: deleteError } = await supabase.storage
+        .from('spreadsheets')
+        .remove([filePath]);
+      
+      if (deleteError) {
+        console.error('Error deleting file:', deleteError);
+      } else {
+        console.log('File cleaned up successfully:', filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error during file cleanup:', cleanupError);
+    }
 
   } catch (error) {
     console.error(`Error processing report ${reportId}:`, error);
     
-    // Update status to failed
+    // Update status to failed and clean up file
     await supabase
       .from('spreadsheet_reports')
       .update({
@@ -265,6 +309,19 @@ ${userQuestion ?
         text_summary: `Processing failed: ${error.message}`
       })
       .eq('id', reportId);
+
+    // Clean up file even on failure
+    try {
+      const { error: deleteError } = await supabase.storage
+        .from('spreadsheets')
+        .remove([filePath]);
+      
+      if (deleteError) {
+        console.error('Error deleting file during cleanup:', deleteError);
+      }
+    } catch (cleanupError) {
+      console.error('Error during file cleanup on failure:', cleanupError);
+    }
   }
 }
 
