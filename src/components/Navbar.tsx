@@ -17,7 +17,7 @@ const Navbar = () => {
         if (el) {
             const isMobile = window.innerWidth < 1024;
             // Adjust offset for mobile view
-            const offset = isMobile ? 450 : 0; // adjust this if needed for a fixed navbar
+            const offset = isMobile ? 50 : 30; // adjust this if needed for a fixed navbar
             // Calculate the position to scroll to
             const y = el.getBoundingClientRect().top + window.scrollY - offset;
             window.scrollTo({ top: y, behavior: "smooth" });
@@ -68,7 +68,7 @@ const Navbar = () => {
     ];
 
     return (
-        <>
+        <div className="fixed top-0 left-0 w-full z-50 bg-background shadow-md">
             {/* Top Contact Bar */}
             <div className="bg-primary text-primary-foreground py-2 px-4">
                 <div className="container mx-auto flex justify-between items-center text-xs sm:text-sm">
@@ -91,7 +91,7 @@ const Navbar = () => {
             </div>
 
             {/* Main Navbar */}
-            <nav className="bg-background shadow-card sticky top-5 z-50">
+            <nav className="bg-background shadow-card sticky top-0 z-50">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center h-14 sm:h-16">
                         <Link
@@ -212,7 +212,7 @@ const Navbar = () => {
                     )}
                 </div>
             </nav>
-        </>
+        </div>
     );
 };
 

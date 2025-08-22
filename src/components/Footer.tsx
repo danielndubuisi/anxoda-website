@@ -139,14 +139,14 @@ const Footer = () => {
                             </li>
                             <li>
                                 <a
-                                    href="#process"
+                                    href="#"
                                     className="text-background/80 hover:text-primary transition-colors">
                                     Our Process
                                 </a>
                             </li>
                             <li>
                                 <a
-                                    href="#contact"
+                                    href="#"
                                     className="text-background/80 hover:text-primary transition-colors">
                                     Contact
                                 </a>

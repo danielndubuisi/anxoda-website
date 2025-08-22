@@ -61,7 +61,7 @@ const teamMembers = [
         name: "Ikenna M.D. Nwankwo",
         role: "Co-Founder",
         bio: "Passionate about empowering small businesses through technology and data consulting.",
-        image: "https://media.licdn.com/dms/image/v2/D4E03AQH-GudX48-fdg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1727476374852?e=1756339200&v=beta&t=TtgHq8l3uHN3ZLj49JpFi4mRiRmfo0tJCXetu7pZDRo",
+        image: "https://media.licdn.com/dms/image/v2/D4E03AQE6IvM_dMuPVg/profile-displayphoto-shrink_400_400/B4EZi.RylUGYAg-/0/1755538993837?e=1758758400&v=beta&t=BNA2LpL-LXuuWjmLtz3dvR_RjlNzHn9ANvsLtUVbsT4",
         linkedin: "https://www.linkedin.com/in/ikenna-m-d-nwankwo-3a2390258",
         email: "martin.nwankwo.169@gmail.com",
     },

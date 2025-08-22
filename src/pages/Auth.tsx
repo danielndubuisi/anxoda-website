@@ -10,238 +10,352 @@ import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    businessName: "",
-    contactPerson: ""
-  });
-  const [isLoading, setIsLoading] = useState(false);
+    const [isLogin, setIsLogin] = useState(true);
+    const [showPassword, setShowPassword] = useState(false);
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+        confirmPassword: "",
+        businessName: "",
+        contactPerson: "",
+    });
+    const [isLoading, setIsLoading] = useState(false);
 
-  const { signUp, signIn, user } = useAuth();
-  const navigate = useNavigate();
+    const { signUp, signIn, signInWithGoogle, user } = useAuth();
+    const navigate = useNavigate();
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (user) {
-      navigate("/dashboard");
-    }
-  }, [user, navigate]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      if (isLogin) {
-        await signIn(formData.email, formData.password);
-      } else {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error("Passwords don't match");
+    // Redirect if already authenticated
+    useEffect(() => {
+        if (user) {
+            navigate("/dashboard");
         }
+    }, [user, navigate]);
 
-        const metadata = {
-          business_name: formData.businessName,
-          contact_person: formData.contactPerson
-        };
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
 
-        await signUp(formData.email, formData.password, metadata);
-      }
-    } catch (error: any) {
-      console.error('Auth error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
 
-  return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Back to home button */}
-        <div className="mb-6">
-          <Link to="/">
-            <Button variant="ghost" className="group">
-              <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
+        try {
+            if (isLogin) {
+                await signIn(formData.email, formData.password);
+            } else {
+                if (formData.password !== formData.confirmPassword) {
+                    throw new Error("Passwords don't match");
+                }
 
-        <Card className="shadow-elegant">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">
-              Welcome to Anxoda
-            </CardTitle>
-            <p className="text-muted-foreground">
-              {isLogin ? "Sign in to try tools" : "Create an account to access free tools"}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={isLogin ? "login" : "signup"} onValueChange={(value) => setIsLogin(value === "login")}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
+                const metadata = {
+                    business_name: formData.businessName,
+                    contact_person: formData.contactPerson,
+                };
 
-              <TabsContent value="login">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
+                await signUp(formData.email, formData.password, metadata);
+            }
+        } catch (error: any) {
+            console.error("Auth error:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        placeholder="Enter your password"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
+    return (
+        <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+            <div className="w-full max-w-md">
+                {/* Back to home button */}
+                <div className="mb-6">
+                    <Link to="/">
+                        <Button variant="ghost" className="group">
+                            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                            Back to Home
+                        </Button>
+                    </Link>
+                </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </TabsContent>
+                <Card className="shadow-elegant">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-2xl font-bold">
+                            Welcome to Anxoda
+                        </CardTitle>
+                        <p className="text-muted-foreground">
+                            {isLogin
+                                ? "Sign in to try tools"
+                                : "Create an account to access free tools"}
+                        </p>
+                    </CardHeader>
+                    <CardContent>
+                        <Tabs
+                            value={isLogin ? "login" : "signup"}
+                            onValueChange={(value) =>
+                                setIsLogin(value === "login")
+                            }>
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="login">Sign In</TabsTrigger>
+                                <TabsTrigger value="signup">
+                                    Sign Up
+                                </TabsTrigger>
+                            </TabsList>
 
-              <TabsContent value="signup">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="businessName">Business Name</Label>
-                      <Input
-                        id="businessName"
-                        name="businessName"
-                        value={formData.businessName}
-                        onChange={handleInputChange}
-                        placeholder="Your company"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="contactPerson">Contact Person</Label>
-                      <Input
-                        id="contactPerson"
-                        name="contactPerson"
-                        value={formData.contactPerson}
-                        onChange={handleInputChange}
-                        placeholder="Your name"
-                        required
-                      />
-                    </div>
-                  </div>
+                            <TabsContent value="login">
+                                <form
+                                    onSubmit={handleSubmit}
+                                    className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input
+                                            id="email"
+                                            name="email"
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            placeholder="your@email.com"
+                                            required
+                                        />
+                                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password">
+                                            Password
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                name="password"
+                                                type={
+                                                    showPassword
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                value={formData.password}
+                                                onChange={handleInputChange}
+                                                placeholder="Enter your password"
+                                                required
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute right-0 top-0 h-full px-3"
+                                                onClick={() =>
+                                                    setShowPassword(
+                                                        !showPassword
+                                                    )
+                                                }>
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        placeholder="Create a password"
-                        required
-                        minLength={6}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
+                                    <Button
+                                        type="submit"
+                                        className="w-full"
+                                        disabled={isLoading}>
+                                        {isLoading
+                                            ? "Signing in..."
+                                            : "Sign In"}
+                                    </Button>
+                                    <div className="mt-6 flex flex-col items-center">
+                                        <button
+                                            type="button"
+                                            onClick={signInWithGoogle}
+                                            className="w-full max-w-xs flex items-center justify-center gap-2 py-2 px-4 rounded-md border border-border bg-background hover:bg-primary/10 text-foreground font-medium shadow-sm transition-colors">
+                                            <svg
+                                                className="w-5 h-5"
+                                                viewBox="0 0 24 24">
+                                                <path
+                                                    fill="#EA4335"
+                                                    d="M12 11.7v2.6h7.4c-.3 1.7-2 5-7.4 5-4.4 0-8-3.6-8-8s3.6-8 8-8c2.5 0 4.2.9 5.2 1.7l-2.1 2.1C14.2 6.7 13.2 6.3 12 6.3c-3.2 0-5.7 2.6-5.7 5.7s2.6 5.7 5.7 5.7c3.3 0 4.5-2.3 4.7-3.5H12z"
+                                                />
+                                                <path
+                                                    fill="#34A853"
+                                                    d="M3.3 7.7l2.3 1.7C6.4 8.1 7.9 6.3 12 6.3c1.2 0 2.2.4 3 .9l2.1-2.1C15.2 3.9 13.5 3 12 3 7.6 3 4 6.6 4 11c0 1.6.4 3.1 1.3 4.3l2.3-1.7C6.7 12.7 6.3 11.9 6.3 11c0-.9.4-1.7 1-2.3z"
+                                                />
+                                                <path
+                                                    fill="#FBBC05"
+                                                    d="M12 21c1.5 0 2.9-.5 4-1.3l-2.1-2.1c-.8.5-1.8.8-2.9.8-3.2 0-5.7-2.6-5.7-5.7 0-.9.2-1.7.5-2.4l-2.3-1.7C3.1 8.9 3 9.9 3 11c0 4.4 3.6 8 8 8z"
+                                                />
+                                                <path
+                                                    fill="#4285F4"
+                                                    d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v2.6h5.7c-.2 1.1-.9 2.1-1.8 2.7l2.1 1.7c1.2-1.1 1.9-2.7 1.9-4.9z"
+                                                />
+                                            </svg>
+                                            Continue with Google
+                                        </button>
+                                    </div>
+                                </form>
+                            </TabsContent>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      placeholder="Confirm your password"
-                      required
-                      minLength={6}
-                    />
-                  </div>
+                            <TabsContent value="signup">
+                                <form
+                                    onSubmit={handleSubmit}
+                                    className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="businessName">
+                                                Business Name
+                                            </Label>
+                                            <Input
+                                                id="businessName"
+                                                name="businessName"
+                                                value={formData.businessName}
+                                                onChange={handleInputChange}
+                                                placeholder="Your company"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="contactPerson">
+                                                Contact Person
+                                            </Label>
+                                            <Input
+                                                id="contactPerson"
+                                                name="contactPerson"
+                                                value={formData.contactPerson}
+                                                onChange={handleInputChange}
+                                                placeholder="Your name"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input
+                                            id="email"
+                                            name="email"
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            placeholder="your@email.com"
+                                            required
+                                        />
+                                    </div>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>
-                By signing up, you agree to our{" "}
-                <Link to="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link to="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
-              </p>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password">
+                                            Password
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                name="password"
+                                                type={
+                                                    showPassword
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                value={formData.password}
+                                                onChange={handleInputChange}
+                                                placeholder="Create a password"
+                                                required
+                                                minLength={6}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute right-0 top-0 h-full px-3"
+                                                onClick={() =>
+                                                    setShowPassword(
+                                                        !showPassword
+                                                    )
+                                                }>
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirmPassword">
+                                            Confirm Password
+                                        </Label>
+                                        <Input
+                                            id="confirmPassword"
+                                            name="confirmPassword"
+                                            type="password"
+                                            value={formData.confirmPassword}
+                                            onChange={handleInputChange}
+                                            placeholder="Confirm your password"
+                                            required
+                                            minLength={6}
+                                        />
+                                    </div>
+
+                                    <Button
+                                        type="submit"
+                                        className="w-full"
+                                        disabled={isLoading}>
+                                        {isLoading
+                                            ? "Creating account..."
+                                            : "Create Account"}
+                                    </Button>
+                                    <div className="mt-6 flex flex-col items-center">
+                                        <button
+                                            type="button"
+                                            onClick={signInWithGoogle}
+                                            className="w-full max-w-xs flex items-center justify-center gap-2 py-2 px-4 rounded-md border border-border bg-background hover:bg-primary/10 text-foreground font-medium shadow-sm transition-colors">
+                                            <svg
+                                                className="w-5 h-5"
+                                                viewBox="0 0 24 24">
+                                                <path
+                                                    fill="#EA4335"
+                                                    d="M12 11.7v2.6h7.4c-.3 1.7-2 5-7.4 5-4.4 0-8-3.6-8-8s3.6-8 8-8c2.5 0 4.2.9 5.2 1.7l-2.1 2.1C14.2 6.7 13.2 6.3 12 6.3c-3.2 0-5.7 2.6-5.7 5.7s2.6 5.7 5.7 5.7c3.3 0 4.5-2.3 4.7-3.5H12z"
+                                                />
+                                                <path
+                                                    fill="#34A853"
+                                                    d="M3.3 7.7l2.3 1.7C6.4 8.1 7.9 6.3 12 6.3c1.2 0 2.2.4 3 .9l2.1-2.1C15.2 3.9 13.5 3 12 3 7.6 3 4 6.6 4 11c0 1.6.4 3.1 1.3 4.3l2.3-1.7C6.7 12.7 6.3 11.9 6.3 11c0-.9.4-1.7 1-2.3z"
+                                                />
+                                                <path
+                                                    fill="#FBBC05"
+                                                    d="M12 21c1.5 0 2.9-.5 4-1.3l-2.1-2.1c-.8.5-1.8.8-2.9.8-3.2 0-5.7-2.6-5.7-5.7 0-.9.2-1.7.5-2.4l-2.3-1.7C3.1 8.9 3 9.9 3 11c0 4.4 3.6 8 8 8z"
+                                                />
+                                                <path
+                                                    fill="#4285F4"
+                                                    d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v2.6h5.7c-.2 1.1-.9 2.1-1.8 2.7l2.1 1.7c1.2-1.1 1.9-2.7 1.9-4.9z"
+                                                />
+                                            </svg>
+                                            Continue with Google
+                                        </button>
+                                    </div>
+                                </form>
+                            </TabsContent>
+                        </Tabs>
+
+                        <div className="mt-6 text-center text-sm text-muted-foreground">
+                            <p>
+                                By signing up, you agree to our{" "}
+                                <Link
+                                    to="/terms"
+                                    className="text-primary hover:underline">
+                                    Terms of Service
+                                </Link>{" "}
+                                and{" "}
+                                <Link
+                                    to="/privacy"
+                                    className="text-primary hover:underline">
+                                    Privacy Policy
+                                </Link>
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default Auth;

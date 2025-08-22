@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
-import { DemoDataUploader } from "@/components/DemoDataUploader";
 import { QuestionInput } from "@/components/QuestionInput";
 import {
     User,
     Building2,
-    CreditCard,
-    Settings,
     LogOut,
     Crown,
     Shield,
@@ -59,127 +56,193 @@ const Dashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("analyzer");
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [analysisQuestion, setAnalysisQuestion] = useState<string | undefined>(undefined);
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-  }, [user, loading, navigate]);
-
-  // Fetch user profile and subscription
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchSubscription();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      setProfile(data);
-    } catch (error: any) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const fetchSubscription = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      setSubscription(data);
-    } catch (error: any) {
-      console.error('Error fetching subscription:', error);
-    }
-  };
-
-  const updateProfile = async (updatedData: Partial<Profile>) => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: user?.id,
-          ...updatedData
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Profile updated successfully",
-        description: "Your profile information has been saved."
-      });
-
-      fetchProfile();
-    } catch (error: any) {
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
-
-  const getPlanIcon = (plan: string) => {
-    switch (plan) {
-      case 'basic': return <Shield className="w-5 h-5" />;
-      case 'premium': return <Crown className="w-5 h-5" />;
-      case 'enterprise': return <Sparkles className="w-5 h-5" />;
-      default: return <User className="w-5 h-5" />;
-    }
-  };
-
-  const getPlanColor = (plan: string) => {
-    switch (plan) {
-      case 'basic': return 'bg-blue-500';
-      case 'premium': return 'bg-purple-500';
-      case 'enterprise': return 'bg-gold-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your dashboard...</p>
-        </div>
-      </div>
+    const [selectedReportId, setSelectedReportId] = useState<string | null>(
+        null
     );
-  }
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [analysisQuestion, setAnalysisQuestion] = useState<
+        string | undefined
+    >(undefined);
+    // Removed redundant 'uploaded' state
+    const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [currentReport, setCurrentReport] = useState<any>(null);
+    const [polling, setPolling] = useState(false);
+
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (!loading && !user) {
+            navigate("/auth");
+        }
+    }, [user, loading, navigate]);
+
+    // Fetch user profile and subscription
+    const fetchProfile = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("user_id", user?.id)
+                .single();
+
+            if (error && error.code !== "PGRST116") {
+                throw error;
+            }
+
+            setProfile(data);
+        } catch (error) {
+            console.error("Error fetching profile:", error);
+        }
+    }, [user]);
+
+    const fetchSubscription = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from("user_subscriptions")
+                .select("*")
+                .eq("user_id", user?.id)
+                .single();
+
+            if (error && error.code !== "PGRST116") {
+                throw error;
+            }
+
+            setSubscription(data);
+        } catch (error) {
+            console.error("Error fetching subscription:", error);
+        }
+    }, [user]);
+
+    const updateProfile = async (updatedData: Partial<Profile>) => {
+        setIsLoading(true);
+        try {
+            const { error } = await supabase.from("profiles").upsert({
+                user_id: user?.id,
+                ...updatedData,
+            });
+
+            if (error) throw error;
+
+            toast({
+                title: "Profile updated successfully",
+                description: "Your profile information has been saved.",
+            });
+
+            fetchProfile();
+        } catch (error) {
+            toast({
+                title: "Update failed",
+                description:
+                    error instanceof Error ? error.message : String(error),
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSignOut = async () => {
+        await signOut();
+        navigate("/");
+    };
+
+    const getPlanIcon = (plan: string) => {
+        switch (plan) {
+            case "basic":
+                return <Shield className="w-5 h-5" />;
+            case "premium":
+                return <Crown className="w-5 h-5" />;
+            case "enterprise":
+                return <Sparkles className="w-5 h-5" />;
+            default:
+                return <User className="w-5 h-5" />;
+        }
+    };
+
+    const getPlanColor = (plan: string) => {
+        switch (plan) {
+            case "basic":
+                return "bg-blue-500";
+            case "premium":
+                return "bg-purple-500";
+            case "enterprise":
+                return "bg-gold-500";
+            default:
+                return "bg-gray-500";
+        }
+    };
+
+    const handleQuestionSubmit = async (question: string) => {
+        if (!uploadedFile) return;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) {
+            toast({
+                title: "Not authenticated",
+                description: "Please log in.",
+            });
+            return;
+        }
+        const formData = new FormData();
+        formData.append("file", uploadedFile);
+        formData.append("filename", uploadedFile.name);
+        formData.append("question", question);
+
+        const response = await fetch(
+            "https://pjevyfyvrgvjgspxfikd.supabase.co/functions/v1/process-spreadsheet",
+            {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: formData,
+            }
+        );
+        const { reportId } = await response.json();
+        setPolling(true);
+        pollReport(reportId, accessToken);
+        setAnalysisQuestion(question || undefined);
+        setRefreshTrigger((prev) => prev + 1);
+    };
+
+    const pollReport = async (reportId: string, accessToken: string) => {
+        if (!accessToken || !reportId) return;
+        let report;
+        let done = false;
+        while (!done) {
+            const res = await fetch(
+                `https://pjevyfyvrgvjgspxfikd.supabase.co/functions/v1/get-reports?reportId=${reportId}`,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                }
+            );
+            report = await res.json();
+            setCurrentReport(report);
+            if (
+                report.processing_status === "completed" ||
+                report.processing_status === "failed"
+            ) {
+                done = true;
+            } else {
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+            }
+        }
+        setPolling(false);
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">
+                        Loading your dashboard...
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-subtle flex flex-col">
-            {/* Header */}
             <header className="bg-background border-b">
                 <div className="container mx-auto px-2 sm:px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-0">
@@ -515,49 +578,177 @@ const Dashboard = () => {
                                     </p>
                                 </div>
 
-                                <div className="space-y-6">
-                                    <QuestionInput 
-                                      onQuestionSubmit={(question) => setAnalysisQuestion(question || undefined)} 
-                                      isProcessing={false} 
-                                    />
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Stepper UI */}
+                                <div className="space-y-8">
+                                    <div className="flex items-center justify-center gap-4 mb-8">
+                                        <div
+                                            className={`flex items-center gap-2 ${
+                                                !uploadedFileUrl
+                                                    ? "text-primary font-bold"
+                                                    : "text-muted-foreground"
+                                            }`}>
+                                            1. Upload Spreadsheet
+                                        </div>
+                                        <div className="w-8 h-0.5 bg-muted-foreground/30" />
+                                        <div
+                                            className={`flex items-center gap-2 ${
+                                                uploadedFileUrl
+                                                    ? "text-primary font-bold"
+                                                    : "text-muted-foreground"
+                                            }`}>
+                                            2. Ask a Question
+                                        </div>
+                                    </div>
+
+                                    {/* STEP 1: Upload Spreadsheet */}
+                                    {!uploadedFileUrl ? (
                                         <div>
                                             <h3 className="text-lg font-semibold mb-4">
                                                 Upload Your Spreadsheet
                                             </h3>
                                             <SpreadsheetUploader
-                                                question={analysisQuestion}
-                                                onUploadSuccess={(reportId) => {
+                                                onUploadSuccess={(
+                                                    file,
+                                                    fileUrl
+                                                ) => {
+                                                    setUploadedFile(file);
+                                                    setUploadedFileUrl(fileUrl);
                                                     setRefreshTrigger(
                                                         (prev) => prev + 1
                                                     );
                                                 }}
                                             />
                                         </div>
+                                    ) : null}
+
+                                    {/* STEP 2: Question Input (only after upload) */}
+                                    {uploadedFileUrl && (
                                         <div>
                                             <h3 className="text-lg font-semibold mb-4">
-                                                Try Demo Data
+                                                Ask a Question (Optional)
                                             </h3>
-                                            <DemoDataUploader
-                                                question={analysisQuestion}
-                                                onUploadSuccess={(reportId) => {
+                                            <QuestionInput
+                                                onQuestionSubmit={async (
+                                                    question
+                                                ) => {
+                                                    if (!uploadedFile) return;
+                                                    const {
+                                                        data: sessionData,
+                                                    } =
+                                                        await supabase.auth.getSession();
+                                                    const accessToken =
+                                                        sessionData?.session
+                                                            ?.access_token;
+                                                    if (!accessToken) {
+                                                        toast({
+                                                            title: "Not authenticated",
+                                                            description:
+                                                                "Please log in.",
+                                                        });
+                                                        return;
+                                                    }
+                                                    const formData =
+                                                        new FormData();
+                                                    formData.append(
+                                                        "file",
+                                                        uploadedFile
+                                                    );
+                                                    formData.append(
+                                                        "filename",
+                                                        uploadedFile.name
+                                                    );
+                                                    formData.append(
+                                                        "question",
+                                                        question
+                                                    );
+
+                                                    const response =
+                                                        await fetch(
+                                                            "https://pjevyfyvrgvjgspxfikd.supabase.co/functions/v1/process-spreadsheet",
+                                                            {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    Authorization: `Bearer ${accessToken}`,
+                                                                },
+                                                                body: formData,
+                                                            }
+                                                        );
+                                                    const { reportId } =
+                                                        await response.json();
+
+                                                    setPolling(true);
+                                                    pollReport(
+                                                        reportId,
+                                                        accessToken
+                                                    );
+                                                    setAnalysisQuestion(
+                                                        question || undefined
+                                                    );
                                                     setRefreshTrigger(
                                                         (prev) => prev + 1
                                                     );
                                                 }}
+                                                isProcessing={polling}
                                             />
+                                            <Button
+                                                variant="outline"
+                                                className="mt-4"
+                                                onClick={() => {
+                                                    setUploadedFileUrl(null);
+                                                }}>
+                                                Upload a Different File
+                                            </Button>
                                         </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-lg font-semibold mb-4">
-                                            Your Reports
-                                        </h3>
-                                        <ReportList
-                                            onViewReport={setSelectedReportId}
-                                            refreshTrigger={refreshTrigger}
-                                        />
-                                    </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4">
+                                        Your Reports
+                                    </h3>
+                                    {polling && (
+                                        <div className="text-center my-8">
+                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                                            <p className="text-muted-foreground">
+                                                Analyzing your spreadsheet and
+                                                generating report...
+                                            </p>
+                                        </div>
+                                    )}
+                                    {currentReport &&
+                                        currentReport.processing_status ===
+                                            "completed" && (
+                                            <div className="my-8">
+                                                <h3 className="text-lg font-semibold mb-4">
+                                                    AI Report
+                                                </h3>
+                                                <pre className="bg-muted p-4 rounded text-sm overflow-x-auto">
+                                                    {JSON.stringify(
+                                                        currentReport.text_summary,
+                                                        null,
+                                                        2
+                                                    )}
+                                                </pre>
+                                                {/* Render charts if available */}
+                                                {currentReport.chart_data && (
+                                                    <div className="mt-6">
+                                                        <h4 className="font-semibold mb-2">
+                                                            Charts
+                                                        </h4>
+                                                        <pre className="bg-muted p-4 rounded text-sm overflow-x-auto">
+                                                            {JSON.stringify(
+                                                                currentReport.chart_data,
+                                                                null,
+                                                                2
+                                                            )}
+                                                        </pre>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    <ReportList
+                                        onViewReport={setSelectedReportId}
+                                        refreshTrigger={refreshTrigger}
+                                    />
                                 </div>
                             </>
                         )}

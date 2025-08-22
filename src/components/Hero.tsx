@@ -131,7 +131,7 @@ const Hero = () => {
                     </div>
 
                     {/* Image or video embed */}
-                    <div className="relative animate-slide-up order-first lg:order-last">
+                    <div className="relative animate-slide-up order-first lg:order-last mt-20 sm:mt-0">
                         {/* YouTube Video Embed with gradient overlay */}
                         <div className="relative mx-auto w-full max-w-[90%] md:max-w-[720px] aspect-video rounded-2xl overflow-hidden shadow-elegant">
                             <iframe
