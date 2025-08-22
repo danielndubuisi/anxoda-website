@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
+import spreadsheetImage from "@/assets/spreadsheet-analyzer-demo.webp";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
 import { QuestionInput } from "@/components/QuestionInput";
@@ -558,7 +559,7 @@ const Dashboard = () => {
                                 <div className="text-center mb-8">
                                     <div className="relative mb-6">
                                         <img
-                                            src="/src/assets/spreadsheet-analyzer-demo.jpg"
+                                            src={spreadsheetImage}
                                             alt="AI Spreadsheet Analyzer Dashboard"
                                             className="mx-auto rounded-lg shadow-lg w-full max-w-2xl h-48 object-cover"
                                         />

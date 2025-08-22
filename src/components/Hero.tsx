@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, User } from "lucide-react";
-import heroHandshake from "@/assets/hero-handshake.webp";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
