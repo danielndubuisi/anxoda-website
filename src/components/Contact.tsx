@@ -71,6 +71,11 @@ const Contact = () => {
         setIsSubmitting(true);
 
         try {
+            // Get current user from supabase auth
+            const user = supabase.auth.getUser
+                ? (await supabase.auth.getUser()).data.user
+                : null;
+            const user_id = user?.id || null;
             const { data, error } = await supabase.functions.invoke(
                 "send-contact-email",
                 {
@@ -79,6 +84,7 @@ const Contact = () => {
                         email: formData.email,
                         company: formData.company,
                         message: formData.message,
+                        user_id,
                     },
                 }
             );
@@ -104,22 +110,35 @@ const Contact = () => {
             } else {
                 throw new Error(data?.error || "Failed to send message");
             }
-        } catch (error: any) {
-            console.error("Contact form error:", error);
-            toast({
-                title: "Failed to send message",
-                description:
-                    error.message ||
-                    "Please try again later or contact us directly.",
-                variant: "destructive",
-            });
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error("Contact form error:", error);
+                toast({
+                    title: "Failed to send message",
+                    description:
+                        error.message ||
+                        "Please try again later or contact us directly.",
+                    variant: "destructive",
+                });
+            } else {
+                console.error("Contact form error:", error);
+                toast({
+                    title: "Failed to send message",
+                    description:
+                        "Please try again later or contact us directly.",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <section id="contact" className="py-20 bg-gradient-subtle" aria-label="Contact us - Get in touch for digital transformation services">
+        <section
+            id="contact"
+            className="py-20 bg-gradient-subtle"
+            aria-label="Contact us - Get in touch for digital transformation services">
             <div className="container mx-auto px-4">
                 {/* Header */}
                 <div className="text-center mb-16 animate-fade-in">

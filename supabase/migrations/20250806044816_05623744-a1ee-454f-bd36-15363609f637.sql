@@ -17,6 +17,14 @@ CREATE TABLE public.spreadsheet_reports (
 -- Enable Row Level Security
 ALTER TABLE public.spreadsheet_reports ENABLE ROW LEVEL SECURITY;
 
+ALTER TABLE spreadsheet_reports
+  ADD column if not exists report_pdf_path text,
+  ADD column if not exists image_paths jsonb,
+  ADD column if not exists chart_data jsonb,
+  ADD column if not exists text_summary jsonb,
+  ADD column if not exists processing_status text default 'processing',
+  ADD column if not exists error_message text;
+
 -- Create policies for user access
 CREATE POLICY "Users can view their own reports" 
 ON public.spreadsheet_reports 

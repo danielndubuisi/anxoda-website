@@ -27,10 +27,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
     const resend = new Resend(resendApiKey);
-    const { name, email, company, message }: ContactEmailRequest = await req.json();
+    const { name, email, company, message, user_id }: ContactEmailRequest & { user_id?: string } = await req.json();
 
-    if (!name || !email || !message) {
-      throw new Error("Missing required fields: name, email, or message");
+    if (!name || !email || !message || !user_id) {
+      throw new Error("Missing required fields: name, email, message, or user_id");
     }
 
     // Create Supabase client with service role key to store submission
@@ -38,11 +38,13 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
+    // Only allow storing contact info for the authenticated user
     const { error: dbError } = await supabase.from("contact_submissions").insert({
       name,
       email,
       company,
       message,
+      user_id,
       status: "new",
     });
 
@@ -51,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to store contact submission");
     }
 
-    console.log("send-contact-email: stored submission");
+    console.log("send-contact-email: stored submission for user", user_id);
 
     // Notify business
     const businessEmail = await resend.emails.send({

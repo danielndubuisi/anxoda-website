@@ -27,7 +27,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const resend = new Resend(resendApiKey);
-    const { email }: NewsletterRequest = await req.json();
+
+    const { email, user_role }: NewsletterRequest & { user_role?: string } = await req.json();
 
     console.log("Processing newsletter subscription:", { email });
 
@@ -37,6 +38,21 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
+
+    // Only allow admin to fetch the newsletter list
+    if (req.method === "GET") {
+      if (user_role !== "admin") {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: corsHeaders });
+      }
+      const { data: list, error: listError } = await supabaseClient
+        .from("newsletter_subscriptions")
+        .select("email")
+        .eq("subscribed", true);
+      if (listError) {
+        return new Response(JSON.stringify({ error: listError.message }), { status: 500, headers: corsHeaders });
+      }
+      return new Response(JSON.stringify({ emails: list }), { status: 200, headers: corsHeaders });
+    }
 
     // Check if email already exists
     const { data: existingSubscription } = await supabaseClient

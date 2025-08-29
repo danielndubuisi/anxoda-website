@@ -217,11 +217,25 @@ const Dashboard = () => {
             );
             report = await res.json();
             setCurrentReport(report);
+            // Log chart data, summary, and recommendations when report is completed
+            if (
+                report.processing_status === "completed" &&
+                report.text_summary
+            ) {
+                console.log("Summary:", report.text_summary.summary);
+                console.log("Key Findings:", report.text_summary.keyFindings);
+                console.log(
+                    "Recommendations:",
+                    report.text_summary.recommendations
+                );
+            }
             if (
                 report.processing_status === "completed" ||
                 report.processing_status === "failed"
             ) {
                 done = true;
+                // Trigger refresh of report list when polling is done
+                setRefreshTrigger((prev) => prev + 1);
             } else {
                 await new Promise((resolve) => setTimeout(resolve, 3000));
             }
@@ -415,7 +429,7 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-
+                    {/* overview tab */}
                     <TabsContent value="overview" className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Card>
@@ -629,66 +643,9 @@ const Dashboard = () => {
                                                 Ask a Question (Optional)
                                             </h3>
                                             <QuestionInput
-                                                onQuestionSubmit={async (
-                                                    question
-                                                ) => {
-                                                    if (!uploadedFile) return;
-                                                    const {
-                                                        data: sessionData,
-                                                    } =
-                                                        await supabase.auth.getSession();
-                                                    const accessToken =
-                                                        sessionData?.session
-                                                            ?.access_token;
-                                                    if (!accessToken) {
-                                                        toast({
-                                                            title: "Not authenticated",
-                                                            description:
-                                                                "Please log in.",
-                                                        });
-                                                        return;
-                                                    }
-                                                    const formData =
-                                                        new FormData();
-                                                    formData.append(
-                                                        "file",
-                                                        uploadedFile
-                                                    );
-                                                    formData.append(
-                                                        "filename",
-                                                        uploadedFile.name
-                                                    );
-                                                    formData.append(
-                                                        "question",
-                                                        question
-                                                    );
-
-                                                    const response =
-                                                        await fetch(
-                                                            "https://pjevyfyvrgvjgspxfikd.supabase.co/functions/v1/process-spreadsheet",
-                                                            {
-                                                                method: "POST",
-                                                                headers: {
-                                                                    Authorization: `Bearer ${accessToken}`,
-                                                                },
-                                                                body: formData,
-                                                            }
-                                                        );
-                                                    const { reportId } =
-                                                        await response.json();
-
-                                                    setPolling(true);
-                                                    pollReport(
-                                                        reportId,
-                                                        accessToken
-                                                    );
-                                                    setAnalysisQuestion(
-                                                        question || undefined
-                                                    );
-                                                    setRefreshTrigger(
-                                                        (prev) => prev + 1
-                                                    );
-                                                }}
+                                                onQuestionSubmit={
+                                                    handleQuestionSubmit
+                                                }
                                                 isProcessing={polling}
                                             />
                                             <Button
@@ -719,31 +676,7 @@ const Dashboard = () => {
                                         currentReport.processing_status ===
                                             "completed" && (
                                             <div className="my-8">
-                                                <h3 className="text-lg font-semibold mb-4">
-                                                    AI Report
-                                                </h3>
-                                                <pre className="bg-muted p-4 rounded text-sm overflow-x-auto">
-                                                    {JSON.stringify(
-                                                        currentReport.text_summary,
-                                                        null,
-                                                        2
-                                                    )}
-                                                </pre>
-                                                {/* Render charts if available */}
-                                                {currentReport.chart_data && (
-                                                    <div className="mt-6">
-                                                        <h4 className="font-semibold mb-2">
-                                                            Charts
-                                                        </h4>
-                                                        <pre className="bg-muted p-4 rounded text-sm overflow-x-auto">
-                                                            {JSON.stringify(
-                                                                currentReport.chart_data,
-                                                                null,
-                                                                2
-                                                            )}
-                                                        </pre>
-                                                    </div>
-                                                )}
+                                                {/* Do not render chart data or report summary. Only refresh the page. */}
                                             </div>
                                         )}
                                     <ReportList

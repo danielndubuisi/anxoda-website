@@ -32,10 +32,17 @@ const Footer = () => {
         setIsSubscribing(true);
 
         try {
+            // Get current user and role if available
+            let user_role = undefined;
+            if (supabase.auth.getUser) {
+                const user = (await supabase.auth.getUser()).data.user;
+                // If you store roles in user metadata, adjust here
+                user_role = user?.role || user?.user_metadata?.role;
+            }
             const { data, error } = await supabase.functions.invoke(
                 "subscribe-newsletter",
                 {
-                    body: { email },
+                    body: { email, user_role },
                 }
             );
 
@@ -53,13 +60,22 @@ const Footer = () => {
             } else {
                 throw new Error(data?.error || "Failed to subscribe");
             }
-        } catch (error: any) {
-            console.error("Newsletter subscription error:", error);
-            toast({
-                title: "Subscription failed",
-                description: error.message || "Please try again later.",
-                variant: "destructive",
-            });
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error("Newsletter subscription error:", error);
+                toast({
+                    title: "Subscription failed",
+                    description: error.message || "Please try again later.",
+                    variant: "destructive",
+                });
+            } else {
+                console.error("Newsletter subscription error:", error);
+                toast({
+                    title: "Subscription failed",
+                    description: "Please try again later.",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setIsSubscribing(false);
         }

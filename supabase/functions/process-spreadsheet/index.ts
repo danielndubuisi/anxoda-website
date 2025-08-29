@@ -125,6 +125,7 @@ serve(async (req) => {
   }
 });
 
+// processSpreadsheet with this enhanced implementation
 async function processSpreadsheet(reportId: string, filePath: string, supabase: any, userQuestion?: string) {
   try {
     console.log(`Starting processing for report ${reportId}`);
@@ -134,7 +135,7 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
       .from('spreadsheets')
       .download(filePath);
 
-    if (downloadError) {
+    if (downloadError || !fileData) {
       console.error('File download error:', downloadError);
       throw new Error('Failed to download file for processing');
     }
@@ -144,184 +145,113 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
     const workbook = XLSX.read(fileBuffer, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    
-    // Convert to JSON with headers, ensuring we handle various formats
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
-    
-    if (jsonData.length === 0) {
-      throw new Error('No data found in spreadsheet');
-    }
-    
-    // Clean headers and ensure they're strings
-    const headers = (jsonData[0] as any[]).map((h, i) => h ? String(h).trim() : `Column ${i + 1}`);
-    const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && cell !== ''));
-    const rowCount = dataRows.length;
-    const columnCount = headers.length;
 
-    // Analyze data types and patterns
-    const columnAnalysis = analyzeColumns(headers, dataRows);
-    
-    // Generate comprehensive statistics
-    const stats = {
-      totalRows: rowCount,
-      totalColumns: columnCount,
-      columns: headers,
-      columnTypes: columnAnalysis.types,
-      sampleData: dataRows.slice(0, 5),
-      numericColumns: columnAnalysis.numeric,
-      categoricalColumns: columnAnalysis.categorical,
-      dateColumns: columnAnalysis.dates
-    };
+    if (!jsonData || jsonData.length === 0) throw new Error('No data found in spreadsheet');
 
-    // Call OpenAI for summary (if API key is available)
-    let textSummary = `Data Analysis Summary:
-    
-This spreadsheet contains ${rowCount} rows and ${columnCount} columns.
+    // Normalize headers & rows
+    const headers = (jsonData[0] as any[]).map((h, i) => (h ? String(h).trim() : `Column ${i+1}`));
+    const rawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+    const dataRows = rawRows.map(row => {
+      const obj: Record<string, any> = {};
+      for (let i = 0; i < headers.length; i++) {
+        obj[headers[i]] = row[i] !== undefined ? row[i] : null;
+      }
+      return obj;
+    });
 
-Columns: ${headers.join(', ')}
+  // Analyze columns and generate charts
+  const columnAnalysis = analyzeColumns(headers, rawRows);
+  const chartData = generateCharts(headers, rawRows, columnAnalysis);
 
-Key Insights:
-- The dataset has ${rowCount} records across ${columnCount} different fields
-- Column headers suggest this contains ${headers.length > 5 ? 'comprehensive' : 'focused'} data
-- Sample data indicates ${headers.some(h => h.toLowerCase().includes('date')) ? 'time-series' : 'categorical'} information
-
-This is a basic analysis. For more detailed insights, consider reviewing the data structure and content patterns.`;
-
+    // Prepare payload for OpenAI
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    let summary = '';
+    let recommendations = [] as string[];
+    let openaiError = null;
+
     if (openaiApiKey) {
       try {
-        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        const prompt = [
+          {
+            role: 'system',
+            content: `You are an expert business analyst. I need you to provide an exploatory analysis of this spreadsheet data, and give a recommendation to help the business scale based on chart insights, and a user question. Always return results as a valid JSON object with keys: summary (string), recommendations (array of strings). Your output must be strictly valid JSON, no markdown, no extra text, no explanations. Example: {"summary": "...", "recommendations": ["...", "..."]}`
+          },
+          {
+            role: 'user',
+            content: `Spreadsheet sample (first 10 rows):\n${JSON.stringify(dataRows.slice(0, 10))}\n\nChart insights: ${JSON.stringify(chartData.slice(0, 2))}\n\nUser question: ${userQuestion ?? 'None'}\nFocus on actionable business growth recommendations.`
+          }
+        ];
+
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${openaiApiKey}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: `You are the Auto Spreadsheet Summarizer (ASS). Given a spreadsheet and a KPI request, do the following:
-
-1. Analyze the dataset to fully answer the KPI request.
-2. Identify 2–5 additional KPIs that could be relevant.
-3. Output results in JSON format with three sections:
-   {
-     "keyFindings": ["Main insight 1", "Main insight 2", "Main insight 3"],
-     "additionalKPIs": ["KPI 1: Description", "KPI 2: Description"],
-     "recommendations": ["Action 1", "Action 2", "Action 3"]
-   }
-4. Keep answers accurate, clear, and professional.
-5. Focus on actionable business insights and data-driven recommendations.`
-              },
-              {
-                role: 'user',
-                content: `Analyze this spreadsheet data:
-                
-${userQuestion ? `User's KPI request: "${userQuestion}"` : 'General analysis requested'}
-
-Dataset Overview:
-- Filename: ${filePath.split('/').pop()}
-- Row Count: ${rowCount}
-- Column Count: ${columnCount}
-- Columns: ${headers.join(', ')}
-- Numeric Columns: ${columnAnalysis.numeric.join(', ') || 'None'}
-- Categorical Columns: ${columnAnalysis.categorical.join(', ') || 'None'}
-- Date Columns: ${columnAnalysis.dates.join(', ') || 'None'}
-- Sample Data: ${JSON.stringify(stats.sampleData.slice(0, 3))}
-
-${userQuestion ? 
-  `Focus your analysis on the KPI request: "${userQuestion}"` :
-  'Provide a comprehensive business analysis of this dataset'}
-
-Return structured JSON analysis as specified.`
-              }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000
-          }),
+            messages: prompt,
+            temperature: 0.2,
+            max_tokens: 800
+          })
         });
 
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
+        if (resp.ok) {
+          const js = await resp.json();
+          console.log('Raw OpenAI response:', js);
+          let content = js.choices?.[0]?.message?.content ?? '';
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) content = jsonMatch[0];
           try {
-            // Try to parse as JSON first
-            textSummary = JSON.parse(aiData.choices[0].message.content);
-          } catch (parseError) {
-            // Fallback to structured format if JSON parsing fails
-            const content = aiData.choices[0].message.content;
-            textSummary = {
-              keyFindings: [content],
-              additionalKPIs: [],
-              recommendations: ["Consider reviewing the data structure for better insights."]
-            };
+            const parsed = JSON.parse(content);
+            console.log('Parsed OpenAI summary:', parsed.summary);
+            console.log('Parsed OpenAI recommendations:', parsed.recommendations);
+            summary = parsed.summary ?? '';
+            recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+          } catch (e) {
+            openaiError = 'Failed to parse OpenAI response.';
           }
+        } else {
+          openaiError = 'OpenAI API call failed.';
         }
-      } catch (aiError) {
-        console.error('OpenAI API error:', aiError);
+      } catch (e) {
+        openaiError = `OpenAI error: ${e instanceof Error ? e.message : String(e)}`;
       }
     }
 
-    // Generate intelligent chart data based on actual data
-    const chartData = generateCharts(headers, dataRows, columnAnalysis);
+    // Fallback if OpenAI fails
+    if (!summary) {
+      summary = `Auto-summary: ${dataRows.length} rows, ${headers.length} columns. Top category: ${headers[0]}, sample value: ${dataRows[0]?.[headers[0]] ?? 'N/A'}`;
+    }
+    if (!recommendations.length) {
+      recommendations = [
+        'Focus marketing on top-performing categories and regions.',
+        'Analyze pricing strategies to maximize profit margin.',
+        'Investigate discount impact on sales and profit for optimization.',
+        'Segment customers for targeted campaigns.',
+        'Expand product mix in high-growth categories.'
+      ];
+    }
 
     // Update report in database
-    const { error: updateError } = await supabase
-      .from('spreadsheet_reports')
-      .update({
-        processing_status: 'completed',
-        text_summary: textSummary,
-        chart_data: chartData,
-        row_count: rowCount,
-        column_count: columnCount
-      })
-      .eq('id', reportId);
+    await supabase.from('spreadsheet_reports').update({
+      processing_status: 'completed',
+      summary,
+      recommendations,
+      chart_data: chartData,
+      openai_error: openaiError
+    }).eq('id', reportId);
 
-    if (updateError) {
-      throw new Error('Failed to update report');
-    }
+    console.log('Report processed:', { summary, recommendations, openaiError });
 
-    console.log(`Successfully processed report ${reportId}`);
-    
-    // Clean up uploaded file after successful processing
-    try {
-      const { error: deleteError } = await supabase.storage
-        .from('spreadsheets')
-        .remove([filePath]);
-      
-      if (deleteError) {
-        console.error('Error deleting file:', deleteError);
-      } else {
-        console.log('File cleaned up successfully:', filePath);
-      }
-    } catch (cleanupError) {
-      console.error('Error during file cleanup:', cleanupError);
-    }
-
-  } catch (error) {
-    console.error(`Error processing report ${reportId}:`, error);
-    
-    // Update status to failed and clean up file
-    await supabase
-      .from('spreadsheet_reports')
-      .update({
-        processing_status: 'failed',
-        text_summary: `Processing failed: ${error.message}`
-      })
-      .eq('id', reportId);
-
-    // Clean up file even on failure
-    try {
-      const { error: deleteError } = await supabase.storage
-        .from('spreadsheets')
-        .remove([filePath]);
-      
-      if (deleteError) {
-        console.error('Error deleting file during cleanup:', deleteError);
-      }
-    } catch (cleanupError) {
-      console.error('Error during file cleanup on failure:', cleanupError);
-    }
+  } catch (e) {
+    console.error('Spreadsheet processing error:', e);
+    await supabase.from('spreadsheet_reports').update({
+      processing_status: 'failed',
+      error: `Spreadsheet processing error: ${e instanceof Error ? e.message : String(e)}`
+    }).eq('id', reportId);
+    return;
   }
 }
 
