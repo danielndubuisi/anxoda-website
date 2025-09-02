@@ -12,6 +12,7 @@ interface AuthContextType {
         metadata?: any
     ) => Promise<{ error: any }>;
     signIn: (email: string, password: string) => Promise<{ error: any }>;
+    signInWithGoogle: () => Promise<void>;
     signOut: () => Promise<void>;
     loading: boolean;
 }
