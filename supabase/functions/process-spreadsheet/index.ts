@@ -279,14 +279,35 @@ Focus on:
       ];
     }
 
-    // Update report in database
-    await supabase.from('spreadsheet_reports').update({
+    // Format data for ReportViewer
+    const structuredSummary = {
+      keyFindings: Array.isArray(recommendations) && recommendations.length > 0 
+        ? recommendations.slice(0, 3) 
+        : ['Data contains ' + dataRows.length + ' records across ' + headers.length + ' columns'],
+      additionalKPIs: [
+        'Total rows: ' + dataRows.length,
+        'Data quality: ' + (dataAnalysis.missingValues ? Object.keys(dataAnalysis.missingValues).length + ' columns checked' : 'Good'),
+        'Domain detected: ' + (dataAnalysis.domain || 'General')
+      ],
+      recommendations: Array.isArray(recommendations) && recommendations.length > 0 
+        ? recommendations 
+        : ['Review data quality and completeness', 'Consider additional data sources', 'Implement data validation rules']
+    };
+
+    // Update report in database with correct column names
+    const updateData: any = {
       processing_status: 'completed',
-      summary,
-      recommendations,
+      text_summary: structuredSummary,
       chart_data: chartData,
-      openai_error: openaiError
-    }).eq('id', reportId);
+      row_count: dataRows.length,
+      column_count: headers.length
+    };
+    
+    if (openaiError) {
+      updateData.error_message = openaiError;
+    }
+
+    await supabase.from('spreadsheet_reports').update(updateData).eq('id', reportId);
 
     console.log('Report processed:', { summary, recommendations, openaiError });
 
