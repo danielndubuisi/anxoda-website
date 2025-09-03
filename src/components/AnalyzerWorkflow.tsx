@@ -98,13 +98,9 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
 
       if (data?.reportId) {
         setReportId(data.reportId);
-        setCurrentStep('results');
-        onReportGenerated?.();
         
-        toast({
-          title: "Analysis Complete",
-          description: "Your spreadsheet has been analyzed successfully.",
-        });
+        // Poll for report completion instead of immediately showing results
+        await pollForReportCompletion(data.reportId);
       } else {
         throw new Error('No report ID returned from processing');
       }
@@ -118,9 +114,60 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
         description: error instanceof Error ? error.message : "An error occurred during analysis. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsProcessing(false);
     }
+  };
+
+  const pollForReportCompletion = async (reportId: string) => {
+    const maxAttempts = 60; // 3 minutes with 3-second intervals
+    let attempts = 0;
+
+    const checkStatus = async (): Promise<void> => {
+      try {
+        const { data: report, error } = await supabase
+          .from('spreadsheet_reports')
+          .select('processing_status')
+          .eq('id', reportId)
+          .single();
+
+        if (error) {
+          throw new Error('Failed to check report status');
+        }
+
+        attempts++;
+
+        if (report.processing_status === 'completed') {
+          setCurrentStep('results');
+          setIsProcessing(false);
+          onReportGenerated?.();
+          
+          toast({
+            title: "Analysis Complete",
+            description: "Your spreadsheet has been analyzed successfully.",
+          });
+          return;
+        } else if (report.processing_status === 'failed') {
+          throw new Error('Report processing failed');
+        } else if (attempts >= maxAttempts) {
+          throw new Error('Processing timeout - please try again');
+        }
+
+        // Continue polling
+        setTimeout(checkStatus, 3000);
+      } catch (error) {
+        console.error('Polling error:', error);
+        setIsProcessing(false);
+        setCurrentStep('question');
+        
+        toast({
+          title: "Analysis Failed",
+          description: error instanceof Error ? error.message : "Processing failed. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    // Start polling
+    setTimeout(checkStatus, 2000); // Initial delay
   };
 
   const resetWorkflow = () => {
