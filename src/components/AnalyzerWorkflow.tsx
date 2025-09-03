@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { SpreadsheetUploader } from '@/components/SpreadsheetUploader';
 import { QuestionInput } from '@/components/QuestionInput';
 import { ReportViewer } from '@/components/ReportViewer';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Upload, 
   MessageSquare, 
@@ -28,6 +30,8 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [analysisQuestion, setAnalysisQuestion] = useState<string>('');
+  const { toast } = useToast();
 
   const steps = [
     {
@@ -66,19 +70,57 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
     setCurrentStep('question');
   };
 
-  const handleQuestionSubmitted = (question?: string) => {
+  const handleQuestionSubmitted = async (question?: string) => {
+    if (!uploadedFile) return;
+    
     setCurrentStep('processing');
     setIsProcessing(true);
+    setAnalysisQuestion(question || '');
     
-    // Here we would normally trigger the actual analysis
-    // For now, simulate processing
-    setTimeout(() => {
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      formData.append('filename', uploadedFile.name);
+      if (question) {
+        formData.append('question', question);
+      }
+
+      // Call the process-spreadsheet edge function
+      const { data, error } = await supabase.functions.invoke('process-spreadsheet', {
+        body: formData,
+      });
+
+      if (error) {
+        console.error('Processing error:', error);
+        throw new Error(error.message || 'Failed to process spreadsheet');
+      }
+
+      if (data?.reportId) {
+        setReportId(data.reportId);
+        setCurrentStep('results');
+        onReportGenerated?.();
+        
+        toast({
+          title: "Analysis Complete",
+          description: "Your spreadsheet has been analyzed successfully.",
+        });
+      } else {
+        throw new Error('No report ID returned from processing');
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
       setIsProcessing(false);
-      setCurrentStep('results');
-      // You would set the actual report ID from the analysis response
-      setReportId('sample-report-id');
-      onReportGenerated?.();
-    }, 3000);
+      setCurrentStep('question');
+      
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "An error occurred during analysis. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetWorkflow = () => {
@@ -87,6 +129,7 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
     setUploadedFileUrl(null);
     setReportId(null);
     setIsProcessing(false);
+    setAnalysisQuestion('');
   };
 
   const goToStep = (stepId: WorkflowStep) => {
