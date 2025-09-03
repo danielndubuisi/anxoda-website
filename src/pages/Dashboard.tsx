@@ -13,7 +13,7 @@ import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import spreadsheetImage from "@/assets/spreadsheet-analyzer-demo.webp";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
-import { QuestionInput } from "@/components/QuestionInput";
+import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
 import {
     User,
     Building2,
@@ -563,129 +563,7 @@ const Dashboard = () => {
                     </TabsContent>
 
                     <TabsContent value="analyzer" className="space-y-6">
-                        {selectedReportId ? (
-                            <ReportViewer
-                                reportId={selectedReportId}
-                                onBack={() => setSelectedReportId(null)}
-                            />
-                        ) : (
-                            <>
-                                <div className="text-center mb-8">
-                                    <div className="relative mb-6">
-                                        <img
-                                            src={spreadsheetImage}
-                                            alt="AI Spreadsheet Analyzer Dashboard"
-                                            className="mx-auto rounded-lg shadow-lg w-full max-w-2xl h-48 object-cover"
-                                        />
-                                        <div className="absolute inset-0 bg-primary/5 rounded-lg flex items-center justify-center">
-                                            <FileSpreadsheet className="h-12 w-12 text-primary" />
-                                        </div>
-                                    </div>
-                                    <h2 className="text-2xl font-bold mb-2">
-                                        Auto Spreadsheet Summarizer
-                                    </h2>
-                                    <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-                                        Upload your CSV or Excel files and get
-                                        AI-powered insights with automatic data
-                                        analysis, intelligent chart generation,
-                                        and comprehensive business intelligence
-                                        reports.
-                                    </p>
-                                </div>
-
-                                {/* Stepper UI */}
-                                <div className="space-y-8">
-                                    <div className="flex items-center justify-center gap-4 mb-8">
-                                        <div
-                                            className={`flex items-center gap-2 ${
-                                                !uploadedFileUrl
-                                                    ? "text-primary font-bold"
-                                                    : "text-muted-foreground"
-                                            }`}>
-                                            1. Upload Spreadsheet
-                                        </div>
-                                        <div className="w-8 h-0.5 bg-muted-foreground/30" />
-                                        <div
-                                            className={`flex items-center gap-2 ${
-                                                uploadedFileUrl
-                                                    ? "text-primary font-bold"
-                                                    : "text-muted-foreground"
-                                            }`}>
-                                            2. Ask a Question
-                                        </div>
-                                    </div>
-
-                                    {/* STEP 1: Upload Spreadsheet */}
-                                    {!uploadedFileUrl ? (
-                                        <div>
-                                            <h3 className="text-lg font-semibold mb-4">
-                                                Upload Your Spreadsheet
-                                            </h3>
-                                            <SpreadsheetUploader
-                                                onUploadSuccess={(
-                                                    file,
-                                                    fileUrl
-                                                ) => {
-                                                    setUploadedFile(file);
-                                                    setUploadedFileUrl(fileUrl);
-                                                    setRefreshTrigger(
-                                                        (prev) => prev + 1
-                                                    );
-                                                }}
-                                            />
-                                        </div>
-                                    ) : null}
-
-                                    {/* STEP 2: Question Input (only after upload) */}
-                                    {uploadedFileUrl && (
-                                        <div>
-                                            <h3 className="text-lg font-semibold mb-4">
-                                                Ask a Question (Optional)
-                                            </h3>
-                                            <QuestionInput
-                                                onQuestionSubmit={
-                                                    handleQuestionSubmit
-                                                }
-                                                isProcessing={polling}
-                                            />
-                                            <Button
-                                                variant="outline"
-                                                className="mt-4"
-                                                onClick={() => {
-                                                    setUploadedFileUrl(null);
-                                                }}>
-                                                Upload a Different File
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-4">
-                                        Your Reports
-                                    </h3>
-                                    {polling && (
-                                        <div className="text-center my-8">
-                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                                            <p className="text-muted-foreground">
-                                                Analyzing your spreadsheet and
-                                                generating report...
-                                            </p>
-                                        </div>
-                                    )}
-                                    {currentReport &&
-                                        currentReport.processing_status ===
-                                            "completed" && (
-                                            <div className="my-8">
-                                                {/* Do not render chart data or report summary. Only refresh the page. */}
-                                            </div>
-                                        )}
-                                    <ReportList
-                                        onViewReport={setSelectedReportId}
-                                        refreshTrigger={refreshTrigger}
-                                    />
-                                </div>
-                            </>
-                        )}
+                        <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
                     </TabsContent>
 
                     <TabsContent value="profile" className="space-y-6">

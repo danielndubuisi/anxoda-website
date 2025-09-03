@@ -81,6 +81,17 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
         fetchReport();
     }, [reportId]);
 
+    useEffect(() => {
+        // Auto-refresh for processing reports
+        if (report?.processing_status === 'processing') {
+            const interval = setInterval(() => {
+                fetchReport();
+            }, 3000);
+            
+            return () => clearInterval(interval);
+        }
+    }, [report?.processing_status]);
+
     const fetchReport = async () => {
         try {
             setLoading(true);
@@ -342,6 +353,71 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                             The report you're looking for doesn't exist or may
                             have been deleted.
                         </p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // Show processing state
+    if (report.processing_status === 'processing') {
+        return (
+            <div className="container mx-auto p-6">
+                <div className="flex items-center gap-4 mb-6">
+                    <Button
+                        variant="ghost"
+                        onClick={onBack}
+                        className="flex items-center gap-2">
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Reports
+                    </Button>
+                </div>
+                <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                            <BarChart3 className="w-8 h-8 text-primary animate-pulse" />
+                        </div>
+                        <h3 className="text-lg font-semibold">Processing Your Report</h3>
+                        <p className="text-muted-foreground text-center">
+                            AI is analyzing your data and generating insights.<br />
+                            This usually takes 1-2 minutes.
+                        </p>
+                        <div className="w-full max-w-xs bg-muted rounded-full h-2">
+                            <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // Show failed state
+    if (report.processing_status === 'failed') {
+        return (
+            <div className="container mx-auto p-6">
+                <div className="flex items-center gap-4 mb-6">
+                    <Button
+                        variant="ghost"
+                        onClick={onBack}
+                        className="flex items-center gap-2">
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Reports
+                    </Button>
+                </div>
+                <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                        <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+                            <FileText className="w-8 h-8 text-destructive" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2 text-destructive">
+                            Processing Failed
+                        </h3>
+                        <p className="text-muted-foreground text-center mb-4">
+                            There was an error processing your report. Please try uploading again.
+                        </p>
+                        <Button onClick={onBack}>
+                            Try Again
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
