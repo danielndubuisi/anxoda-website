@@ -85,7 +85,13 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
     if OPENAI_API_KEY:
         client = OpenAI(api_key=OPENAI_API_KEY)
         context = json.dumps({"schema": chart_json.get("schema"), "kpi": chart_json.get("kpi")}, ensure_ascii=False)
-        prompt = USER_PROMPT_TEMPLATE.format(context=context, kpis=json.dumps(chart_json.get("kpi")), question=payload.question or "(none)")
+        domain_type = "business" # Default domain
+        prompt = USER_PROMPT_TEMPLATE.format(
+            context=context, 
+            kpis=json.dumps(chart_json.get("kpi")), 
+            question=payload.question or "(none)",
+            domain_type=domain_type
+        )
         try:
             resp = client.chat.completions.create(
                 model="gpt-4o-mini",

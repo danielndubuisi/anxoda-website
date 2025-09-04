@@ -520,14 +520,15 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
             </div>
 
             {/* Main Content Tabs */}
-            <Tabs defaultValue="visualization" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger
+            <Tabs defaultValue="summary" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2">
+                    {/* Visualization tab commented out for now */}
+                    {/* <TabsTrigger
                         value="visualization"
                         className="flex items-center gap-2">
                         <BarChart3 className="w-4 h-4" />
                         Visualization
-                    </TabsTrigger>
+                    </TabsTrigger> */}
                     <TabsTrigger
                         value="summary"
                         className="flex items-center gap-2">
@@ -542,8 +543,8 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                     </TabsTrigger>
                 </TabsList>
 
-                {/* Visualization Tab */}
-                <TabsContent value="visualization" className="space-y-6">
+                {/* Visualization Tab - Hidden for now */}
+                {/* <TabsContent value="visualization" className="space-y-6">
                     {report.chart_data &&
                     Array.isArray(report.chart_data) &&
                     report.chart_data.length > 0 ? (
@@ -583,7 +584,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                             </CardContent>
                         </Card>
                     )}
-                </TabsContent>
+                </TabsContent> */}
 
                 {/* Summary Tab */}
                 <TabsContent value="summary" className="space-y-6">
