@@ -522,18 +522,11 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
             {/* Main Content Tabs */}
             <Tabs defaultValue="summary" className="space-y-6">
                 <TabsList className="grid w-full grid-cols-2">
-                    {/* Visualization tab commented out for now */}
-                    {/* <TabsTrigger
-                        value="visualization"
-                        className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4" />
-                        Visualization
-                    </TabsTrigger> */}
                     <TabsTrigger
                         value="summary"
                         className="flex items-center gap-2">
                         <FileText className="w-4 h-4" />
-                        Summary
+                        Analysis & Insights
                     </TabsTrigger>
                     <TabsTrigger
                         value="recommendations"

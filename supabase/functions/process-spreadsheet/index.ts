@@ -169,6 +169,7 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
     let summary = '';
     let recommendations = [] as string[];
     let openaiError = null;
+    let structuredSummary: any = null;
 
     if (openaiApiKey) {
       try {
@@ -259,16 +260,48 @@ Expected output: Professional business analysis with specific metrics, percentag
           const js = await resp.json();
           console.log('Raw OpenAI response:', js);
           let content = js.choices?.[0]?.message?.content ?? '';
-          const jsonMatch = content.match(/\{[\s\S]*\}/);
-          if (jsonMatch) content = jsonMatch[0];
+          
+          // Enhanced JSON extraction - handle markdown code blocks and extra text
+          content = content.trim();
+          if (content.includes('```json')) {
+            const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+            content = jsonMatch ? jsonMatch[1].trim() : content;
+          } else if (content.includes('```')) {
+            const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+            content = jsonMatch ? jsonMatch[1].trim() : content;
+          } else {
+            // Find the largest JSON object in the content
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) content = jsonMatch[0];
+          }
+          
+          console.log('Extracted JSON content:', content);
+          
           try {
             const parsed = JSON.parse(content);
-            console.log('Parsed OpenAI summary:', parsed.summary);
-            console.log('Parsed OpenAI recommendations:', parsed.recommendations);
-            summary = parsed.summary ?? '';
-            recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+            console.log('Successfully parsed OpenAI response:', parsed);
+            
+            if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
+              summary = parsed.summary;
+              recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+              // Store the structured data properly
+              structuredSummary = {
+                keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [parsed.summary || 'No findings available'],
+                additionalKPIs: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [
+                  `Dataset contains ${dataRows.length} total records`,
+                  `Analysis covered ${headers.length} data dimensions`,
+                  `Data quality: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete`
+                ],
+                recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
+              };
+            } else {
+              console.log('OpenAI response missing required fields:', Object.keys(parsed));
+              openaiError = 'OpenAI response format incomplete';
+            }
           } catch (e) {
-            openaiError = 'Failed to parse OpenAI response.';
+            console.error('JSON parsing failed:', e);
+            console.error('Content that failed to parse:', content);
+            openaiError = `Failed to parse OpenAI response: ${e.message}`;
           }
         } else {
           openaiError = 'OpenAI API call failed.';
@@ -278,58 +311,41 @@ Expected output: Professional business analysis with specific metrics, percentag
       }
     }
 
-    // Fallback if OpenAI fails
-    if (!summary) {
-      summary = `Auto-summary: ${dataRows.length} rows, ${headers.length} columns. Top category: ${headers[0]}, sample value: ${dataRows[0]?.[headers[0]] ?? 'N/A'}`;
-    }
-    if (!recommendations.length) {
-      recommendations = [
-        'Focus marketing on top-performing categories and regions.',
-        'Analyze pricing strategies to maximize profit margin.',
-        'Investigate discount impact on sales and profit for optimization.',
-        'Segment customers for targeted campaigns.',
-        'Expand product mix in high-growth categories.'
-      ];
-    }
+    // Fallback if OpenAI fails or structuredSummary wasn't set
+    if (!structuredSummary) {
+      if (!summary) {
+        summary = `Auto-summary: ${dataRows.length} rows, ${headers.length} columns. Top category: ${headers[0]}, sample value: ${dataRows[0]?.[headers[0]] ?? 'N/A'}`;
+      }
+      if (!recommendations.length) {
+        recommendations = [
+          'Focus marketing on top-performing categories and regions.',
+          'Analyze pricing strategies to maximize profit margin.',
+          'Investigate discount impact on sales and profit for optimization.',
+          'Segment customers for targeted campaigns.',
+          'Expand product mix in high-growth categories.'
+        ];
+      }
 
-    // Format data for ReportViewer - Enhanced structure
-    let structuredSummary;
-    try {
-        const summaryParsed = typeof summary === 'string' && summary.startsWith('{') ? JSON.parse(summary) : null;
-        structuredSummary = {
-            keyFindings: summaryParsed?.keyFindings || [
-                `Analyzed ${dataRows.length} data records across ${headers.length} key dimensions`,
-                "Successfully processed dataset with comprehensive statistical analysis",
-                "Generated actionable insights for business optimization"
-            ],
-            additionalKPIs: summaryParsed?.nextSteps || [
-                `Dataset contains ${dataRows.length} total records`,
-                `Analysis covered ${headers.length} data dimensions`, 
-                `Data quality: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete`
-            ],
-            recommendations: Array.isArray(recommendations) && recommendations.length > 0 
-                ? recommendations 
-                : [
-                    "Implement data-driven decision making processes",
-                    "Establish regular reporting and monitoring systems",
-                    "Focus on top-performing segments for growth acceleration"
-                ]
-        };
-    } catch (parseError) {
-        // Fallback structure if parsing fails
-        structuredSummary = {
-            keyFindings: Array.isArray(recommendations) && recommendations.length > 0 
-                ? recommendations.slice(0, 3) 
-                : ['Data contains ' + dataRows.length + ' records across ' + headers.length + ' columns'],
-            additionalKPIs: [
-                'Total rows: ' + dataRows.length,
-                'Data quality: ' + (dataAnalysis.missingValues ? Object.keys(dataAnalysis.missingValues).length + ' columns analyzed' : 'Good'),
-                'Domain detected: ' + (dataAnalysis.domain || 'General')
-            ],
-            recommendations: Array.isArray(recommendations) && recommendations.length > 0 
-                ? recommendations 
-                : ['Review data quality and completeness', 'Consider additional data sources', 'Implement data validation rules']
-        };
+      // Create fallback structure only if OpenAI failed
+      structuredSummary = {
+        keyFindings: [
+          `Analyzed ${dataRows.length} data records across ${headers.length} key dimensions`,
+          "Successfully processed dataset with comprehensive statistical analysis",
+          "Generated actionable insights for business optimization"
+        ],
+        additionalKPIs: [
+          `Dataset contains ${dataRows.length} total records`,
+          `Analysis covered ${headers.length} data dimensions`,
+          `Data quality: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete`
+        ],
+        recommendations: Array.isArray(recommendations) && recommendations.length > 0
+          ? recommendations
+          : [
+              "Implement data-driven decision making processes",
+              "Establish regular reporting and monitoring systems",
+              "Focus on top-performing segments for growth acceleration"
+            ]
+      };
     }
 
     // Update report in database with correct column names
