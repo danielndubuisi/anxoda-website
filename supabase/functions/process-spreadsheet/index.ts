@@ -174,91 +174,136 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
     if (openaiApiKey) {
       console.log('Generating AI insights with OpenAI...');
       try {
-        // Calculate key business metrics from actual data for enhanced context
+        // Enhanced category detection using actual data values (not schema patterns)
         const topCategories = dataAnalysis.categorical.length > 0 ? 
           (() => {
             const categoryCol = dataAnalysis.categorical[0];
             const categoryIndex = headers.indexOf(categoryCol);
             const counts = dataRows.reduce((acc: Record<string, number>, row) => {
-              const category = String(row[categoryIndex] || 'Unknown');
-              acc[category] = (acc[category] || 0) + 1;
+              const category = String(row[categoryIndex] || 'Unspecified').trim();
+              if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+                acc[category] = (acc[category] || 0) + 1;
+              }
               return acc;
             }, {});
+            
             return Object.entries(counts)
               .sort(([,a], [,b]) => b - a)
               .slice(0, 5)
               .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
           })() : [];
 
-        const revenueMetrics = dataAnalysis.numeric.length > 0 ?
-          (() => {
+        // Domain-specific metric selection based on detected business domain
+        const primaryMetrics = (() => {
+          if (dataAnalysis.domain === 'hr') {
+            const salaryCol = dataAnalysis.numeric.find(col => 
+              col.toLowerCase().includes('salary') || 
+              col.toLowerCase().includes('wage') || 
+              col.toLowerCase().includes('compensation')
+            ) || dataAnalysis.numeric[0];
+            return salaryCol ? { column: salaryCol, stats: dataAnalysis.descriptiveStats[salaryCol] } : null;
+          } else if (dataAnalysis.domain === 'sales') {
             const revenueCol = dataAnalysis.numeric.find(col => 
               col.toLowerCase().includes('sales') || 
               col.toLowerCase().includes('revenue') || 
               col.toLowerCase().includes('amount') ||
               col.toLowerCase().includes('total')
             ) || dataAnalysis.numeric[0];
-            const stats = dataAnalysis.descriptiveStats[revenueCol];
-            return stats ? {
-              column: revenueCol,
-              total: stats.sum?.toLocaleString() || 'N/A',
-              average: stats.mean?.toLocaleString() || 'N/A',
-              max: stats.max?.toLocaleString() || 'N/A',
-              min: stats.min?.toLocaleString() || 'N/A'
-            } : null;
-          })() : null;
+            return revenueCol ? { column: revenueCol, stats: dataAnalysis.descriptiveStats[revenueCol] } : null;
+          } else if (dataAnalysis.domain === 'finance') {
+            const financeCol = dataAnalysis.numeric.find(col => 
+              col.toLowerCase().includes('expense') || 
+              col.toLowerCase().includes('cost') || 
+              col.toLowerCase().includes('budget')
+            ) || dataAnalysis.numeric[0];
+            return financeCol ? { column: financeCol, stats: dataAnalysis.descriptiveStats[financeCol] } : null;
+          } else {
+            // General case - use first numeric column
+            const primaryCol = dataAnalysis.numeric[0];
+            return primaryCol ? { column: primaryCol, stats: dataAnalysis.descriptiveStats[primaryCol] } : null;
+          }
+        })();
+
+        // Domain-specific AI prompt with appropriate context and terminology
+        const domainSpecificPrompt = (() => {
+          const baseRequirements = `You are a senior ${dataAnalysis.domain} analyst providing executive-level insights. You MUST analyze the provided ${dataAnalysis.domain.toUpperCase()} data and generate specific, actionable recommendations with real numbers and percentages from the actual dataset.
+
+CRITICAL REQUIREMENTS:
+1. Use ACTUAL data values from the dataset - never use placeholder text
+2. Include specific percentages and metrics from the provided statistics  
+3. Reference actual ${dataAnalysis.categorical.length > 0 ? dataAnalysis.categorical[0] : 'category'} names and values shown in the data
+4. Provide concrete, quantified insights that executives could act on immediately
+5. Focus on ${dataAnalysis.domain}-specific metrics and KPIs only`;
+
+          if (dataAnalysis.domain === 'hr') {
+            return `${baseRequirements}
+6. Focus on workforce analytics: employee distribution, compensation analysis, department performance
+7. Avoid sales/revenue terminology - use HR-specific language (headcount, retention, compensation, etc.)
+8. Provide insights about talent management, organizational structure, and workforce optimization`;
+          } else if (dataAnalysis.domain === 'sales') {
+            return `${baseRequirements}
+6. Focus on revenue optimization, customer analysis, and sales performance metrics
+7. Include sales-specific KPIs: conversion rates, average order value, customer segmentation
+8. Provide insights about market opportunities, customer behavior, and sales strategy`;
+          } else if (dataAnalysis.domain === 'finance') {
+            return `${baseRequirements}
+6. Focus on financial performance, cost analysis, and budget optimization
+7. Include financial KPIs: cost ratios, budget variances, expense categories
+8. Provide insights about financial efficiency, cost control, and budget allocation`;
+          } else {
+            return `${baseRequirements}
+6. Focus on the most relevant business metrics identified in the data
+7. Use domain-neutral terminology appropriate to the data content
+8. Provide insights specific to the identified data patterns and business context`;
+          }
+        })();
 
         const prompt = [
           {
             role: 'system',
-            content: `You are a senior business analyst providing executive-level insights. You MUST analyze the provided business data and generate specific, actionable recommendations with real numbers and percentages from the actual dataset.
-
-CRITICAL REQUIREMENTS:
-1. Use ACTUAL data values from the dataset - never use placeholder text
-2. Include specific percentages, dollar amounts, and metrics from the provided statistics
-3. Reference actual category names, regions, and values shown in the data
-4. Provide concrete, quantified insights that a CEO could act on immediately
+            content: `${domainSpecificPrompt}
 
 REQUIRED OUTPUT FORMAT (EXACT JSON STRUCTURE):
 {
-  "summary": "Executive summary with specific numbers from the dataset (e.g., 'Analysis of 1,247 transactions reveals Technology category drives 42% of revenue at $284K total')",
+  "summary": "Executive summary with specific numbers from the dataset (e.g., 'Analysis of 1,247 ${dataAnalysis.domain} records reveals ${dataAnalysis.categorical[0] || 'primary category'} performance drives 42% of total activity')",
   "keyFindings": [
-    "Finding with actual data values (e.g., 'West region customers spend 2.3x more than East region ($847 vs $366 average order)')",
-    "Another insight with real percentages (e.g., 'Office Supplies category shows highest profit margin at 15.3% but only 23% of volume')",
-    "Third finding with specific metrics (e.g., 'Top 20% of customers generate 65% of total revenue worth $1.2M')"
+    "Finding with actual data values (e.g., 'Technology department has 2.3x higher average ${primaryMetrics?.column || 'value'} than Operations ($847 vs $366)')",
+    "Another insight with real percentages (e.g., 'Top performing ${dataAnalysis.categorical[0] || 'category'} shows highest performance but only represents 23% of volume')",
+    "Third finding with specific metrics (e.g., 'Top 20% of records generate 65% of total ${primaryMetrics?.column || 'value'} worth $1.2M')"
   ],
   "recommendations": [
-    "Action with specific targets (e.g., 'Increase Technology category marketing budget by 40% to capture additional $89K revenue potential')",
-    "Operational improvement with numbers (e.g., 'Focus on West region expansion - current $847 AOV suggests 180% growth opportunity')",
-    "Growth strategy with ROI (e.g., 'Optimize Office Supplies pricing to increase 15.3% margin across 847 units for $127K impact')"
+    "Action with specific targets (e.g., 'Focus on ${dataAnalysis.categorical[0] || 'top category'} optimization to capture additional 40% improvement potential')",
+    "Operational improvement with numbers (e.g., 'Expand high-performing segments - current data suggests 180% growth opportunity')",
+    "Strategic initiative with ROI (e.g., 'Optimize ${primaryMetrics?.column || 'key metrics'} to increase performance across identified segments')"
   ],
   "nextSteps": [
-    "Immediate action with timeline (e.g., 'Launch targeted campaign for top 3 categories within 30 days')",
-    "Medium-term initiative with metrics (e.g., 'Expand high-margin products to achieve 25% profit increase by Q3')",
-    "Long-term strategy with targets (e.g., 'Replicate West region success model for 200% revenue growth')"
+    "Immediate action with timeline (e.g., 'Analyze top 3 ${dataAnalysis.categorical[0] || 'categories'} within 30 days')",
+    "Medium-term initiative with metrics (e.g., 'Implement optimization strategy to achieve 25% improvement by Q3')",
+    "Long-term strategy with targets (e.g., 'Scale successful patterns for sustainable growth')"
   ]
 }
 
-NEVER use generic terms like "top-performing categories" - USE THE ACTUAL CATEGORY NAMES from the data.
+NEVER use generic terms like "top-performing categories" - USE THE ACTUAL ${dataAnalysis.categorical[0] ? dataAnalysis.categorical[0].toUpperCase() : 'CATEGORY'} NAMES from the data.
 NEVER use placeholder percentages - USE THE CALCULATED STATISTICS provided.`
           },
           {
             role: 'user', 
-            content: `URGENT: BUSINESS DATA ANALYSIS REQUEST
+            content: `URGENT: ${dataAnalysis.domain.toUpperCase()} DATA ANALYSIS REQUEST
 
 DATASET OVERVIEW:
 • Business Domain: ${dataAnalysis.domain.toUpperCase()} analysis (${dataAnalysis.domainConfidence}% confidence)
-• Data Scale: ${dataAnalysis.totalRows.toLocaleString()} transactions across ${dataAnalysis.totalColumns} business dimensions
+• Data Scale: ${dataAnalysis.totalRows.toLocaleString()} records across ${dataAnalysis.totalColumns} business dimensions
 • Column Types: ${dataAnalysis.numeric.length} numerical metrics, ${dataAnalysis.categorical.length} categories, ${dataAnalysis.dates.length} time-based fields
 
 KEY BUSINESS METRICS:
-${revenueMetrics ? `Primary Revenue Metric (${revenueMetrics.column}):
-- Total Value: $${revenueMetrics.total}
-- Average Transaction: $${revenueMetrics.average}  
-- Highest Single Value: $${revenueMetrics.max}
-- Range: $${revenueMetrics.min} to $${revenueMetrics.max}` : 'No revenue metrics identified'}
+${primaryMetrics ? `Primary ${dataAnalysis.domain === 'hr' ? 'Compensation' : dataAnalysis.domain === 'sales' ? 'Revenue' : 'Financial'} Metric (${primaryMetrics.column}):
+- Total Value: ${primaryMetrics.stats?.sum ? `$${primaryMetrics.stats.sum.toLocaleString()}` : 'N/A'}
+- Average Value: ${primaryMetrics.stats?.mean ? `$${primaryMetrics.stats.mean.toLocaleString()}` : 'N/A'}
+- Highest Value: ${primaryMetrics.stats?.max ? `$${primaryMetrics.stats.max.toLocaleString()}` : 'N/A'}  
+- Lowest Value: ${primaryMetrics.stats?.min ? `$${primaryMetrics.stats.min.toLocaleString()}` : 'N/A'}
+- Range: ${primaryMetrics.stats?.min && primaryMetrics.stats?.max ? `$${primaryMetrics.stats.min.toLocaleString()} to $${primaryMetrics.stats.max.toLocaleString()}` : 'N/A'}` : 'No primary metrics identified'}
 
-TOP CATEGORY BREAKDOWN:
+TOP ${dataAnalysis.categorical[0] ? dataAnalysis.categorical[0].toUpperCase() : 'CATEGORY'} BREAKDOWN:
 ${topCategories.length > 0 ? topCategories.join('\n') : 'No categorical data available'}
 
 STATISTICAL ANALYSIS:
@@ -267,18 +312,33 @@ ${JSON.stringify(dataAnalysis.descriptiveStats, null, 2)}
 DATA COMPLETENESS:
 ${Object.entries(dataAnalysis.missingValues).map(([col, pct]) => `• ${col}: ${100-pct}% data quality`).join('\n')}
 
-SAMPLE BUSINESS RECORDS (First 10):
-${JSON.stringify(dataRows.slice(0, 10).map((row, i) => {
-  const record = { Record: i+1 };
-  headers.slice(0, 8).forEach(header => {
-    record[header] = row[headers.indexOf(header)];
-  });
+SAMPLE RECORDS (First 5 with key fields):
+${JSON.stringify(dataRows.slice(0, 5).map((row, i) => {
+  const record: any = { RecordID: i+1 };
+  
+  // Include the most relevant fields based on domain
+  if (dataAnalysis.domain === 'hr') {
+    headers.slice(0, 6).forEach(header => {
+      if (!header.toLowerCase().includes('price') && !header.toLowerCase().includes('sales')) {
+        record[header] = row[headers.indexOf(header)];
+      }
+    });
+  } else if (dataAnalysis.domain === 'sales') {
+    headers.slice(0, 6).forEach(header => {
+      record[header] = row[headers.indexOf(header)];
+    });
+  } else {
+    headers.slice(0, 6).forEach(header => {
+      record[header] = row[headers.indexOf(header)];
+    });
+  }
+  
   return record;
 }), null, 2)}
 
-ANALYSIS REQUEST: ${userQuestion || 'Generate executive-level business insights with specific recommendations for revenue growth, cost optimization, and operational efficiency'}
+ANALYSIS REQUEST: ${userQuestion || `Generate executive-level ${dataAnalysis.domain} insights with specific recommendations for performance optimization, efficiency improvements, and strategic growth`}
 
-DELIVERABLE: Professional C-suite analysis with concrete numbers, specific category names, and actionable strategies with quantified ROI potential. Use the EXACT data values provided - no generic statements allowed.`
+DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete numbers, specific ${dataAnalysis.categorical[0] || 'category'} names, and actionable strategies with quantified impact. Use the EXACT data values provided - no generic statements allowed.`
           }
         ];
 
@@ -367,62 +427,96 @@ DELIVERABLE: Professional C-suite analysis with concrete numbers, specific categ
       }
     }
 
-    // Enhanced fallback with data-driven insights if OpenAI fails
+    // Enhanced domain-specific fallback with data-driven insights if OpenAI fails
     if (!structuredSummary) {
       console.log('Creating enhanced fallback summary with actual data insights...');
       
-      // Generate data-driven insights from actual statistics
+      // Generate data-driven insights from actual statistics with domain awareness
       const dataInsights = [];
+      
+      // Get actual category names and counts (not "Unknown")
       const topCategory = dataAnalysis.categorical.length > 0 ? 
         (() => {
           const categoryCol = dataAnalysis.categorical[0];
           const categoryIndex = headers.indexOf(categoryCol);
           const counts = dataRows.reduce((acc: Record<string, number>, row) => {
-            const category = String(row[categoryIndex] || 'Unknown');
-            acc[category] = (acc[category] || 0) + 1;
+            const category = String(row[categoryIndex] || 'Unspecified').trim();
+            if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+              acc[category] = (acc[category] || 0) + 1;
+            }
             return acc;
           }, {});
-          const topEntry = Object.entries(counts).sort(([,a], [,b]) => b - a)[0];
-          return topEntry ? { name: topEntry[0], count: topEntry[1], percentage: Math.round(topEntry[1]/dataRows.length*100) } : null;
+          
+          const validEntries = Object.entries(counts).filter(([name]) => name && name !== 'Unspecified');
+          if (validEntries.length === 0) return null;
+          
+          const topEntry = validEntries.sort(([,a], [,b]) => b - a)[0];
+          return topEntry ? { 
+            name: topEntry[0], 
+            count: topEntry[1], 
+            percentage: Math.round(topEntry[1]/dataRows.length*100),
+            totalCategories: validEntries.length
+          } : null;
         })() : null;
 
-      const revenueInsight = dataAnalysis.numeric.length > 0 ?
+      // Domain-specific insights with actual data
+      if (topCategory && dataAnalysis.domain === 'hr') {
+        dataInsights.push(`${topCategory.name} is the largest ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} employees (${topCategory.percentage}% of workforce) across ${topCategory.totalCategories} total ${dataAnalysis.categorical[0]}s`);
+      } else if (topCategory && dataAnalysis.domain === 'sales') {
+        dataInsights.push(`${topCategory.name} leads in ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} transactions (${topCategory.percentage}% of sales volume) from ${topCategory.totalCategories} active ${dataAnalysis.categorical[0]}s`);
+      } else if (topCategory) {
+        dataInsights.push(`${topCategory.name} represents the top ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} records (${topCategory.percentage}% of dataset) among ${topCategory.totalCategories} categories`);
+      }
+      
+      // Domain-specific metric insights
+      const primaryInsight = primaryMetrics && primaryMetrics.stats ?
         (() => {
-          const revenueCol = dataAnalysis.numeric.find(col => 
-            col.toLowerCase().includes('sales') || 
-            col.toLowerCase().includes('revenue') || 
-            col.toLowerCase().includes('amount')
-          ) || dataAnalysis.numeric[0];
-          return dataAnalysis.descriptiveStats[revenueCol];
+          if (dataAnalysis.domain === 'hr') {
+            return `Employee ${primaryMetrics.column.toLowerCase()} analysis shows average of $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'} with total payroll of $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`;
+          } else if (dataAnalysis.domain === 'sales') {
+            return `Revenue analysis shows average transaction value of $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'} with total sales of $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`;
+          } else {
+            return `${primaryMetrics.column} analysis shows average value of $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'} with total sum of $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`;
+          }
         })() : null;
-
-      if (topCategory) {
-        dataInsights.push(`${topCategory.name} is the leading category with ${topCategory.count.toLocaleString()} records (${topCategory.percentage}% of total)`);
+      
+      if (primaryInsight) {
+        dataInsights.push(primaryInsight);
       }
       
-      if (revenueInsight) {
-        dataInsights.push(`Revenue analysis shows average value of $${revenueInsight.mean?.toLocaleString() || 'N/A'} with total sum of $${revenueInsight.sum?.toLocaleString() || 'N/A'}`);
-      }
-      
-      dataInsights.push(`Data completeness: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% across ${headers.length} dimensions`);
+      dataInsights.push(`Data quality assessment: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% completeness across ${headers.length} dimensions`);
 
-      summary = `Analysis of ${dataRows.length.toLocaleString()} ${dataAnalysis.domain} records reveals key performance patterns and optimization opportunities.`;
+      summary = `Analysis of ${dataRows.length.toLocaleString()} ${dataAnalysis.domain} records reveals key performance patterns and optimization opportunities${topCategory ? ` with ${topCategory.name} leading the ${dataAnalysis.categorical[0]} segment` : ''}.`;
       
-      // Generate data-driven recommendations based on actual insights
+      // Domain-specific recommendations based on actual insights
       const dataRecommendations = [];
       if (topCategory) {
-        dataRecommendations.push(`Focus resources on ${topCategory.name} segment which represents ${topCategory.percentage}% of your business volume`);
+        if (dataAnalysis.domain === 'hr') {
+          dataRecommendations.push(`Focus workforce planning on ${topCategory.name} ${dataAnalysis.categorical[0]} which represents ${topCategory.percentage}% of your ${topCategory.count.toLocaleString()} employees`);
+        } else if (dataAnalysis.domain === 'sales') {
+          dataRecommendations.push(`Prioritize ${topCategory.name} ${dataAnalysis.categorical[0]} strategy as it drives ${topCategory.percentage}% of transaction volume (${topCategory.count.toLocaleString()} sales)`);
+        } else {
+          dataRecommendations.push(`Focus resources on ${topCategory.name} segment which represents ${topCategory.percentage}% of your business volume`);
+        }
       }
-      if (revenueInsight && revenueInsight.mean) {
-        dataRecommendations.push(`Optimize pricing strategy around $${Math.round(revenueInsight.mean).toLocaleString()} average transaction value`);
+      
+      if (primaryMetrics && primaryMetrics.stats && primaryMetrics.stats.mean) {
+        if (dataAnalysis.domain === 'hr') {
+          dataRecommendations.push(`Review compensation strategy around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average ${primaryMetrics.column.toLowerCase()} benchmark`);
+        } else if (dataAnalysis.domain === 'sales') {
+          dataRecommendations.push(`Optimize revenue strategy around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average transaction value to increase sales performance`);
+        } else {
+          dataRecommendations.push(`Optimize strategy around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average ${primaryMetrics.column.toLowerCase()} value`);
+        }
       }
+      
       if (dataAnalysis.domain !== 'general') {
-        dataRecommendations.push(`Leverage ${dataAnalysis.domain} domain insights for targeted ${dataAnalysis.domainConfidence}% confidence strategic decisions`);
+        dataRecommendations.push(`Leverage ${dataAnalysis.domain}-specific insights with ${dataAnalysis.domainConfidence}% confidence for targeted strategic decisions`);
       }
       
       recommendations = dataRecommendations.length > 0 ? dataRecommendations : [
         "Implement data-driven decision making based on statistical analysis",
-        "Focus on highest-volume segments for maximum impact",
+        "Focus on highest-volume segments for maximum impact", 
         "Establish performance monitoring using identified key metrics"
       ];
 
