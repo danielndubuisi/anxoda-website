@@ -172,75 +172,130 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
     let structuredSummary: any = null;
 
     if (openaiApiKey) {
+      console.log('Generating AI insights with OpenAI...');
       try {
+        // Calculate key business metrics from actual data for enhanced context
+        const topCategories = dataAnalysis.categorical.length > 0 ? 
+          (() => {
+            const categoryCol = dataAnalysis.categorical[0];
+            const categoryIndex = headers.indexOf(categoryCol);
+            const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+              const category = String(row[categoryIndex] || 'Unknown');
+              acc[category] = (acc[category] || 0) + 1;
+              return acc;
+            }, {});
+            return Object.entries(counts)
+              .sort(([,a], [,b]) => b - a)
+              .slice(0, 5)
+              .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
+          })() : [];
+
+        const revenueMetrics = dataAnalysis.numeric.length > 0 ?
+          (() => {
+            const revenueCol = dataAnalysis.numeric.find(col => 
+              col.toLowerCase().includes('sales') || 
+              col.toLowerCase().includes('revenue') || 
+              col.toLowerCase().includes('amount') ||
+              col.toLowerCase().includes('total')
+            ) || dataAnalysis.numeric[0];
+            const stats = dataAnalysis.descriptiveStats[revenueCol];
+            return stats ? {
+              column: revenueCol,
+              total: stats.sum?.toLocaleString() || 'N/A',
+              average: stats.mean?.toLocaleString() || 'N/A',
+              max: stats.max?.toLocaleString() || 'N/A',
+              min: stats.min?.toLocaleString() || 'N/A'
+            } : null;
+          })() : null;
+
         const prompt = [
           {
             role: 'system',
-            content: `You are a senior business consultant and data analyst specializing in ${dataAnalysis.domain} analytics. You provide executive-level insights similar to top-tier consulting firms like McKinsey or Bain.
+            content: `You are a senior business analyst providing executive-level insights. You MUST analyze the provided business data and generate specific, actionable recommendations with real numbers and percentages from the actual dataset.
 
-ANALYSIS APPROACH:
-1. EXPLORATORY ANALYSIS: Identify key patterns, outliers, and statistical significance in the data
-2. QUICK INSIGHTS: Generate numbered, specific findings with exact percentages and metrics
-3. PRESCRIPTIVE RECOMMENDATIONS: Provide strategic, actionable recommendations with clear business impact
+CRITICAL REQUIREMENTS:
+1. Use ACTUAL data values from the dataset - never use placeholder text
+2. Include specific percentages, dollar amounts, and metrics from the provided statistics
+3. Reference actual category names, regions, and values shown in the data
+4. Provide concrete, quantified insights that a CEO could act on immediately
 
-OUTPUT STRUCTURE (JSON only):
+REQUIRED OUTPUT FORMAT (EXACT JSON STRUCTURE):
 {
-  "summary": "Executive summary highlighting the most critical discoveries and business opportunities in 2-3 sentences",
+  "summary": "Executive summary with specific numbers from the dataset (e.g., 'Analysis of 1,247 transactions reveals Technology category drives 42% of revenue at $284K total')",
   "keyFindings": [
-    "1. [Specific insight with percentage/metric from data analysis]",
-    "2. [Statistical pattern or trend with quantified impact]", 
-    "3. [Performance insight with comparative metrics]",
-    "4. [Operational or efficiency finding with measurable results]"
+    "Finding with actual data values (e.g., 'West region customers spend 2.3x more than East region ($847 vs $366 average order)')",
+    "Another insight with real percentages (e.g., 'Office Supplies category shows highest profit margin at 15.3% but only 23% of volume')",
+    "Third finding with specific metrics (e.g., 'Top 20% of customers generate 65% of total revenue worth $1.2M')"
   ],
   "recommendations": [
-    "1. [Strategic recommendation with specific action and expected ROI/impact]",
-    "2. [Operational improvement with implementation steps and timeline]",
-    "3. [Growth opportunity with market potential and risk assessment]",
-    "4. [Optimization strategy with measurable KPIs and success metrics]"
+    "Action with specific targets (e.g., 'Increase Technology category marketing budget by 40% to capture additional $89K revenue potential')",
+    "Operational improvement with numbers (e.g., 'Focus on West region expansion - current $847 AOV suggests 180% growth opportunity')",
+    "Growth strategy with ROI (e.g., 'Optimize Office Supplies pricing to increase 15.3% margin across 847 units for $127K impact')"
+  ],
+  "nextSteps": [
+    "Immediate action with timeline (e.g., 'Launch targeted campaign for top 3 categories within 30 days')",
+    "Medium-term initiative with metrics (e.g., 'Expand high-margin products to achieve 25% profit increase by Q3')",
+    "Long-term strategy with targets (e.g., 'Replicate West region success model for 200% revenue growth')"
   ]
 }
 
-REQUIREMENTS:
-- Use actual data values, percentages, and calculations from the dataset
-- Focus on revenue optimization, cost reduction, and growth acceleration
-- Provide specific, quantified insights (not generic statements)
-- Include comparative analysis where relevant (top performers vs. average)
-- Structure like a C-level executive briefing
-
-CRITICAL: Output valid JSON only. No explanatory text, markdown, or formatting.`
+NEVER use generic terms like "top-performing categories" - USE THE ACTUAL CATEGORY NAMES from the data.
+NEVER use placeholder percentages - USE THE CALCULATED STATISTICS provided.`
           },
           {
             role: 'user', 
-            content: `BUSINESS DATA ANALYSIS REQUEST
+            content: `URGENT: BUSINESS DATA ANALYSIS REQUEST
 
-DATASET PROFILE:
-• Domain: ${dataAnalysis.domain.toUpperCase()} (${dataAnalysis.domainConfidence}% confidence)
-• Scale: ${dataAnalysis.totalRows.toLocaleString()} transactions/records across ${dataAnalysis.totalColumns} dimensions
-• Data Types: ${dataAnalysis.numeric.length} metrics, ${dataAnalysis.categorical.length} categories, ${dataAnalysis.dates.length} time series
+DATASET OVERVIEW:
+• Business Domain: ${dataAnalysis.domain.toUpperCase()} analysis (${dataAnalysis.domainConfidence}% confidence)
+• Data Scale: ${dataAnalysis.totalRows.toLocaleString()} transactions across ${dataAnalysis.totalColumns} business dimensions
+• Column Types: ${dataAnalysis.numeric.length} numerical metrics, ${dataAnalysis.categorical.length} categories, ${dataAnalysis.dates.length} time-based fields
 
-STATISTICAL FOUNDATION:
+KEY BUSINESS METRICS:
+${revenueMetrics ? `Primary Revenue Metric (${revenueMetrics.column}):
+- Total Value: $${revenueMetrics.total}
+- Average Transaction: $${revenueMetrics.average}  
+- Highest Single Value: $${revenueMetrics.max}
+- Range: $${revenueMetrics.min} to $${revenueMetrics.max}` : 'No revenue metrics identified'}
+
+TOP CATEGORY BREAKDOWN:
+${topCategories.length > 0 ? topCategories.join('\n') : 'No categorical data available'}
+
+STATISTICAL ANALYSIS:
 ${JSON.stringify(dataAnalysis.descriptiveStats, null, 2)}
 
-DATA QUALITY ASSESSMENT:
-${Object.entries(dataAnalysis.missingValues).map(([col, pct]) => `${col}: ${pct}% complete`).join(', ')}
+DATA COMPLETENESS:
+${Object.entries(dataAnalysis.missingValues).map(([col, pct]) => `• ${col}: ${100-pct}% data quality`).join('\n')}
 
-BUSINESS CONTEXT - SAMPLE TRANSACTIONS:
-${JSON.stringify(dataRows.slice(0, 15).map(row => {
-  const simplified = {};
-  Object.keys(row).slice(0, 6).forEach(key => {
-    simplified[key] = row[key];
+SAMPLE BUSINESS RECORDS (First 10):
+${JSON.stringify(dataRows.slice(0, 10).map((row, i) => {
+  const record = { Record: i+1 };
+  headers.slice(0, 8).forEach(header => {
+    record[header] = row[headers.indexOf(header)];
   });
-  return simplified;
+  return record;
 }), null, 2)}
 
-ANALYTICAL FOCUS: ${userQuestion || 'Comprehensive business performance analysis with growth recommendations'}
+ANALYSIS REQUEST: ${userQuestion || 'Generate executive-level business insights with specific recommendations for revenue growth, cost optimization, and operational efficiency'}
 
-EXECUTIVE BRIEF REQUEST:
-Generate insights that answer: What are the top business opportunities? Where should leadership focus resources? What specific actions will drive the highest ROI?
-
-Expected output: Professional business analysis with specific metrics, percentages, and strategic recommendations suitable for board presentation.`
+DELIVERABLE: Professional C-suite analysis with concrete numbers, specific category names, and actionable strategies with quantified ROI potential. Use the EXACT data values provided - no generic statements allowed.`
           }
         ];
+
+        console.log('Sending OpenAI request with enhanced data context...');
+        
+        const requestBody = {
+          model: 'gpt-4o-mini',
+          messages: prompt,
+          temperature: 0.1,
+          max_tokens: 1500,
+          response_format: { type: "json_object" }
+        };
+
+        console.log('OpenAI request body:', JSON.stringify(requestBody, null, 2));
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
         const resp = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -248,104 +303,145 @@ Expected output: Professional business analysis with specific metrics, percentag
             'Authorization': `Bearer ${openaiApiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: prompt,
-            temperature: 0.1,
-            max_tokens: 1200
-          })
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (resp.ok) {
           const js = await resp.json();
-          console.log('Raw OpenAI response:', js);
+          console.log('Raw OpenAI response status:', resp.status);
+          console.log('OpenAI response body:', JSON.stringify(js, null, 2));
+          
           let content = js.choices?.[0]?.message?.content ?? '';
+          console.log('Raw OpenAI content:', content);
           
-          // Enhanced JSON extraction - handle markdown code blocks and extra text
-          content = content.trim();
-          if (content.includes('```json')) {
-            const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-            content = jsonMatch ? jsonMatch[1].trim() : content;
-          } else if (content.includes('```')) {
-            const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
-            content = jsonMatch ? jsonMatch[1].trim() : content;
+          if (!content) {
+            console.error('OpenAI returned empty content');
+            openaiError = 'OpenAI returned empty response content';
           } else {
-            // Find the largest JSON object in the content
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (jsonMatch) content = jsonMatch[0];
-          }
-          
-          console.log('Extracted JSON content:', content);
-          
-          try {
-            const parsed = JSON.parse(content);
-            console.log('Successfully parsed OpenAI response:', parsed);
-            
-            if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
-              summary = parsed.summary;
-              recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
-              // Store the structured data properly
-              structuredSummary = {
-                keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [parsed.summary || 'No findings available'],
-                additionalKPIs: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [
-                  `Dataset contains ${dataRows.length} total records`,
-                  `Analysis covered ${headers.length} data dimensions`,
-                  `Data quality: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete`
-                ],
-                recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
-              };
-            } else {
-              console.log('OpenAI response missing required fields:', Object.keys(parsed));
-              openaiError = 'OpenAI response format incomplete';
+            try {
+              // Since we're using response_format: json_object, content should be valid JSON
+              const parsed = JSON.parse(content);
+              console.log('Successfully parsed OpenAI JSON response:', JSON.stringify(parsed, null, 2));
+              
+              if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
+                summary = parsed.summary;
+                recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+                
+                // Store the structured data with actual AI content
+                structuredSummary = {
+                  keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [parsed.summary || 'No findings available'],
+                  additionalKPIs: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [
+                    `Processed ${dataRows.length.toLocaleString()} business records`,
+                    `Analyzed ${headers.length} key performance dimensions`,
+                    `Data integrity: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete across all fields`
+                  ],
+                  recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
+                };
+                console.log('Successfully created structured summary from OpenAI response');
+              } else {
+                console.error('OpenAI response missing required fields. Available keys:', Object.keys(parsed));
+                openaiError = `OpenAI response incomplete - missing required fields. Got: ${Object.keys(parsed).join(', ')}`;
+              }
+            } catch (e) {
+              console.error('JSON parsing failed for OpenAI response:', e);
+              console.error('Raw content that failed to parse:', content);
+              openaiError = `Failed to parse OpenAI JSON: ${e.message}`;
             }
-          } catch (e) {
-            console.error('JSON parsing failed:', e);
-            console.error('Content that failed to parse:', content);
-            openaiError = `Failed to parse OpenAI response: ${e.message}`;
           }
         } else {
-          openaiError = 'OpenAI API call failed.';
+          const errorText = await resp.text();
+          console.error('OpenAI API call failed with status:', resp.status);
+          console.error('OpenAI error response:', errorText);
+          openaiError = `OpenAI API call failed with status ${resp.status}: ${errorText}`;
         }
       } catch (e) {
-        openaiError = `OpenAI error: ${e instanceof Error ? e.message : String(e)}`;
+        console.error('OpenAI integration error:', e);
+        if (e.name === 'AbortError') {
+          openaiError = 'OpenAI request timed out after 30 seconds';
+        } else {
+          openaiError = `OpenAI integration error: ${e instanceof Error ? e.message : String(e)}`;
+        }
       }
     }
 
-    // Fallback if OpenAI fails or structuredSummary wasn't set
+    // Enhanced fallback with data-driven insights if OpenAI fails
     if (!structuredSummary) {
-      if (!summary) {
-        summary = `Auto-summary: ${dataRows.length} rows, ${headers.length} columns. Top category: ${headers[0]}, sample value: ${dataRows[0]?.[headers[0]] ?? 'N/A'}`;
-      }
-      if (!recommendations.length) {
-        recommendations = [
-          'Focus marketing on top-performing categories and regions.',
-          'Analyze pricing strategies to maximize profit margin.',
-          'Investigate discount impact on sales and profit for optimization.',
-          'Segment customers for targeted campaigns.',
-          'Expand product mix in high-growth categories.'
-        ];
-      }
+      console.log('Creating enhanced fallback summary with actual data insights...');
+      
+      // Generate data-driven insights from actual statistics
+      const dataInsights = [];
+      const topCategory = dataAnalysis.categorical.length > 0 ? 
+        (() => {
+          const categoryCol = dataAnalysis.categorical[0];
+          const categoryIndex = headers.indexOf(categoryCol);
+          const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+            const category = String(row[categoryIndex] || 'Unknown');
+            acc[category] = (acc[category] || 0) + 1;
+            return acc;
+          }, {});
+          const topEntry = Object.entries(counts).sort(([,a], [,b]) => b - a)[0];
+          return topEntry ? { name: topEntry[0], count: topEntry[1], percentage: Math.round(topEntry[1]/dataRows.length*100) } : null;
+        })() : null;
 
-      // Create fallback structure only if OpenAI failed
+      const revenueInsight = dataAnalysis.numeric.length > 0 ?
+        (() => {
+          const revenueCol = dataAnalysis.numeric.find(col => 
+            col.toLowerCase().includes('sales') || 
+            col.toLowerCase().includes('revenue') || 
+            col.toLowerCase().includes('amount')
+          ) || dataAnalysis.numeric[0];
+          return dataAnalysis.descriptiveStats[revenueCol];
+        })() : null;
+
+      if (topCategory) {
+        dataInsights.push(`${topCategory.name} is the leading category with ${topCategory.count.toLocaleString()} records (${topCategory.percentage}% of total)`);
+      }
+      
+      if (revenueInsight) {
+        dataInsights.push(`Revenue analysis shows average value of $${revenueInsight.mean?.toLocaleString() || 'N/A'} with total sum of $${revenueInsight.sum?.toLocaleString() || 'N/A'}`);
+      }
+      
+      dataInsights.push(`Data completeness: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% across ${headers.length} dimensions`);
+
+      summary = `Analysis of ${dataRows.length.toLocaleString()} ${dataAnalysis.domain} records reveals key performance patterns and optimization opportunities.`;
+      
+      // Generate data-driven recommendations based on actual insights
+      const dataRecommendations = [];
+      if (topCategory) {
+        dataRecommendations.push(`Focus resources on ${topCategory.name} segment which represents ${topCategory.percentage}% of your business volume`);
+      }
+      if (revenueInsight && revenueInsight.mean) {
+        dataRecommendations.push(`Optimize pricing strategy around $${Math.round(revenueInsight.mean).toLocaleString()} average transaction value`);
+      }
+      if (dataAnalysis.domain !== 'general') {
+        dataRecommendations.push(`Leverage ${dataAnalysis.domain} domain insights for targeted ${dataAnalysis.domainConfidence}% confidence strategic decisions`);
+      }
+      
+      recommendations = dataRecommendations.length > 0 ? dataRecommendations : [
+        "Implement data-driven decision making based on statistical analysis",
+        "Focus on highest-volume segments for maximum impact",
+        "Establish performance monitoring using identified key metrics"
+      ];
+
       structuredSummary = {
-        keyFindings: [
-          `Analyzed ${dataRows.length} data records across ${headers.length} key dimensions`,
-          "Successfully processed dataset with comprehensive statistical analysis",
-          "Generated actionable insights for business optimization"
+        keyFindings: dataInsights.length > 0 ? dataInsights : [
+          `Processed ${dataRows.length.toLocaleString()} business records across ${headers.length} dimensions`,
+          `Identified ${dataAnalysis.numeric.length} quantitative metrics and ${dataAnalysis.categorical.length} categorical segments`,
+          `Domain analysis indicates ${dataAnalysis.domain} focus with ${dataAnalysis.domainConfidence}% confidence`
         ],
         additionalKPIs: [
-          `Dataset contains ${dataRows.length} total records`,
-          `Analysis covered ${headers.length} data dimensions`,
-          `Data quality: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete`
+          `Total records analyzed: ${dataRows.length.toLocaleString()}`,
+          `Business dimensions covered: ${headers.length}`,
+          `Data quality score: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}%`,
+          `Domain classification: ${dataAnalysis.domain} (${dataAnalysis.domainConfidence}% confidence)`
         ],
-        recommendations: Array.isArray(recommendations) && recommendations.length > 0
-          ? recommendations
-          : [
-              "Implement data-driven decision making processes",
-              "Establish regular reporting and monitoring systems",
-              "Focus on top-performing segments for growth acceleration"
-            ]
+        recommendations: recommendations
       };
+      
+      console.log('Created enhanced fallback with data-driven insights:', structuredSummary);
     }
 
     // Update report in database with correct column names
