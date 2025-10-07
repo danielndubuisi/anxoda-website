@@ -164,6 +164,57 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
   const dataAnalysis = analyzeDataset(headers, rawRows);
   const chartData = generateIntelligentCharts(headers, rawRows, dataAnalysis, userQuestion);
 
+    // CRITICAL: Calculate these BEFORE OpenAI block so they're available for fallback logic
+    // Enhanced category detection using actual data values (not schema patterns)
+    const topCategories = dataAnalysis.categorical.length > 0 ? 
+      (() => {
+        const categoryCol = dataAnalysis.categorical[0];
+        const categoryIndex = headers.indexOf(categoryCol);
+        const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+          const category = String(row[categoryIndex] || 'Unspecified').trim();
+          if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+            acc[category] = (acc[category] || 0) + 1;
+          }
+          return acc;
+        }, {});
+        
+        return Object.entries(counts)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+          .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
+      })() : [];
+
+    // Domain-specific metric selection based on detected business domain
+    const primaryMetrics = (() => {
+      if (dataAnalysis.domain === 'hr') {
+        const salaryCol = dataAnalysis.numeric.find(col => 
+          col.toLowerCase().includes('salary') || 
+          col.toLowerCase().includes('wage') || 
+          col.toLowerCase().includes('compensation')
+        ) || dataAnalysis.numeric[0];
+        return salaryCol ? { column: salaryCol, stats: dataAnalysis.descriptiveStats[salaryCol] } : null;
+      } else if (dataAnalysis.domain === 'sales') {
+        const revenueCol = dataAnalysis.numeric.find(col => 
+          col.toLowerCase().includes('sales') || 
+          col.toLowerCase().includes('revenue') || 
+          col.toLowerCase().includes('amount') ||
+          col.toLowerCase().includes('total')
+        ) || dataAnalysis.numeric[0];
+        return revenueCol ? { column: revenueCol, stats: dataAnalysis.descriptiveStats[revenueCol] } : null;
+      } else if (dataAnalysis.domain === 'finance') {
+        const financeCol = dataAnalysis.numeric.find(col => 
+          col.toLowerCase().includes('expense') || 
+          col.toLowerCase().includes('cost') || 
+          col.toLowerCase().includes('budget')
+        ) || dataAnalysis.numeric[0];
+        return financeCol ? { column: financeCol, stats: dataAnalysis.descriptiveStats[financeCol] } : null;
+      } else {
+        // General case - use first numeric column
+        const primaryCol = dataAnalysis.numeric[0];
+        return primaryCol ? { column: primaryCol, stats: dataAnalysis.descriptiveStats[primaryCol] } : null;
+      }
+    })();
+
     // Prepare payload for OpenAI
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     let summary = '';
@@ -174,55 +225,6 @@ async function processSpreadsheet(reportId: string, filePath: string, supabase: 
     if (openaiApiKey) {
       console.log('Generating AI insights with OpenAI...');
       try {
-        // Enhanced category detection using actual data values (not schema patterns)
-        const topCategories = dataAnalysis.categorical.length > 0 ? 
-          (() => {
-            const categoryCol = dataAnalysis.categorical[0];
-            const categoryIndex = headers.indexOf(categoryCol);
-            const counts = dataRows.reduce((acc: Record<string, number>, row) => {
-              const category = String(row[categoryIndex] || 'Unspecified').trim();
-              if (category && category !== 'null' && category !== 'undefined' && category !== '') {
-                acc[category] = (acc[category] || 0) + 1;
-              }
-              return acc;
-            }, {});
-            
-            return Object.entries(counts)
-              .sort(([,a], [,b]) => b - a)
-              .slice(0, 5)
-              .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
-          })() : [];
-
-        // Domain-specific metric selection based on detected business domain
-        const primaryMetrics = (() => {
-          if (dataAnalysis.domain === 'hr') {
-            const salaryCol = dataAnalysis.numeric.find(col => 
-              col.toLowerCase().includes('salary') || 
-              col.toLowerCase().includes('wage') || 
-              col.toLowerCase().includes('compensation')
-            ) || dataAnalysis.numeric[0];
-            return salaryCol ? { column: salaryCol, stats: dataAnalysis.descriptiveStats[salaryCol] } : null;
-          } else if (dataAnalysis.domain === 'sales') {
-            const revenueCol = dataAnalysis.numeric.find(col => 
-              col.toLowerCase().includes('sales') || 
-              col.toLowerCase().includes('revenue') || 
-              col.toLowerCase().includes('amount') ||
-              col.toLowerCase().includes('total')
-            ) || dataAnalysis.numeric[0];
-            return revenueCol ? { column: revenueCol, stats: dataAnalysis.descriptiveStats[revenueCol] } : null;
-          } else if (dataAnalysis.domain === 'finance') {
-            const financeCol = dataAnalysis.numeric.find(col => 
-              col.toLowerCase().includes('expense') || 
-              col.toLowerCase().includes('cost') || 
-              col.toLowerCase().includes('budget')
-            ) || dataAnalysis.numeric[0];
-            return financeCol ? { column: financeCol, stats: dataAnalysis.descriptiveStats[financeCol] } : null;
-          } else {
-            // General case - use first numeric column
-            const primaryCol = dataAnalysis.numeric[0];
-            return primaryCol ? { column: primaryCol, stats: dataAnalysis.descriptiveStats[primaryCol] } : null;
-          }
-        })();
 
         // Domain-specific AI prompt with appropriate context and terminology
         const domainSpecificPrompt = (() => {
@@ -559,7 +561,7 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
     console.error('Spreadsheet processing error:', e);
     await supabase.from('spreadsheet_reports').update({
       processing_status: 'failed',
-      error: `Spreadsheet processing error: ${e instanceof Error ? e.message : String(e)}`
+      error_message: `Spreadsheet processing error: ${e instanceof Error ? e.message : String(e)}`
     }).eq('id', reportId);
     return;
   }
