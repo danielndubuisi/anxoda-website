@@ -14,6 +14,7 @@ import spreadsheetImage from "@/assets/spreadsheet-analyzer-demo.webp";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
 import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
+import { ReportHistory } from "@/components/ReportHistory";
 import {
     User,
     Building2,
@@ -564,6 +565,15 @@ const Dashboard = () => {
 
                     <TabsContent value="analyzer" className="space-y-6">
                         <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
+                        
+                        {/* Report History Section */}
+                        <ReportHistory 
+                            onViewReport={(reportId) => {
+                                setSelectedReportId(reportId);
+                                // Optional: Could switch to a different view or modal
+                            }}
+                            refreshTrigger={refreshTrigger}
+                        />
                     </TabsContent>
 
                     <TabsContent value="profile" className="space-y-6">
