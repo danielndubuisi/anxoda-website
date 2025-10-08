@@ -44,7 +44,7 @@ serve(async (req) => {
       throw new Error('Authentication failed');
     }
 
-    const { reportId, userId, sourcePath, question } = await req.json();
+    const { reportId, userId, sourcePath, question, analysisContext } = await req.json();
 
     if (!reportId || !userId || !sourcePath) {
       return badRequest('Missing required fields: reportId, userId, sourcePath');
@@ -85,6 +85,7 @@ serve(async (req) => {
         reportId,
         signedUrl: signed.data.signedUrl,
         question: question || null,
+        analysisContext: analysisContext || null,
       }),
     });
 
