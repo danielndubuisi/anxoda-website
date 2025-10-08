@@ -7,6 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const SPREADSHEETS_BUCKET = 'spreadsheets';
 const REPORTS_BUCKET = 'reports';
 const PY_SERVICE_URL = Deno.env.get('PYTHON_EDA_SERVICE_URL') || 'http://localhost:8000';
 const PY_SERVICE_TOKEN = Deno.env.get('PYTHON_SERVICE_TOKEN') || 'shared-secret-token';
@@ -25,24 +26,10 @@ serve(async (req) => {
   }
 
   try {
-    // Get authorization header
-    const authorization = req.headers.get('Authorization');
-    if (!authorization) {
-      throw new Error('No authorization header');
-    }
-
-    // Initialize Supabase client
+    // Initialize Supabase client with service role for background processing
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authorization } }
-    });
-
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Authentication failed');
-    }
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { reportId, userId, sourcePath, question, analysisContext } = await req.json();
 
@@ -50,23 +37,19 @@ serve(async (req) => {
       return badRequest('Missing required fields: reportId, userId, sourcePath');
     }
 
-    // 2) Create DB row (status=processing)
-    const initRow = await supabase.from("spreadsheet_reports").insert({
-      id: reportId,
-      user_id: userId,
-      processing_status: "processing",
-      file_path: sourcePath,
-      title: sourcePath.split('/').pop() || 'Unknown',
-      original_filename: sourcePath.split('/').pop() || 'unknown.xlsx'
-    }).select("id").single();
+    // Verify the report exists and update status to processing
+    const { error: updateError } = await supabase
+      .from("spreadsheet_reports")
+      .update({ processing_status: "processing" })
+      .eq("id", reportId);
 
-    if (initRow.error) {
-      return badRequest(`DB insert failed: ${initRow.error.message}`, 500);
+    if (updateError) {
+      return badRequest(`Failed to update report status: ${updateError.message}`, 500);
     }
 
-    // 3) Short-lived signed URL for Python to download
+    // 3) Short-lived signed URL for Python to download from spreadsheets bucket
     const signed = await supabase.storage
-      .from(REPORTS_BUCKET)
+      .from(SPREADSHEETS_BUCKET)
       .createSignedUrl(sourcePath, 60); // 60s lifetime
 
     if (signed.error) {

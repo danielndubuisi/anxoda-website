@@ -228,14 +228,12 @@ async function delegateToAnalyze(
     console.log(`Delegating analysis for report ${reportId} to Python service`);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
-    // Call the analyze edge function
+    // Call the analyze edge function (no auth needed - it's a background function)
     const response = await fetch(`${supabaseUrl}/functions/v1/analyze`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         reportId,
