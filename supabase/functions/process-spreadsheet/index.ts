@@ -78,96 +78,6 @@ serve(async (req) => {
       throw new Error('Failed to upload file');
     }
 
-    // Parse spreadsheet immediately to extract rich context
-    const workbook = XLSX.read(fileBuffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
-
-    if (!jsonData || jsonData.length === 0) {
-      throw new Error('No data found in spreadsheet');
-    }
-
-    // Normalize headers & rows
-    const headers = (jsonData[0] as any[]).map((h, i) => (h ? String(h).trim() : `Column ${i+1}`));
-    const rawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
-    const dataRows = rawRows.map(row => {
-      const obj: Record<string, any> = {};
-      for (let i = 0; i < headers.length; i++) {
-        obj[headers[i]] = row[i] !== undefined ? row[i] : null;
-      }
-      return obj;
-    });
-
-    // Analyze dataset for rich context
-    const dataAnalysis = analyzeDataset(headers, rawRows);
-    
-    // Calculate top categories with actual names
-    const topCategories = dataAnalysis.categorical.length > 0 ? 
-      (() => {
-        const categoryCol = dataAnalysis.categorical[0];
-        const categoryIndex = headers.indexOf(categoryCol);
-        const counts = dataRows.reduce((acc: Record<string, number>, row) => {
-          const category = String(row[categoryIndex] || 'Unspecified').trim();
-          if (category && category !== 'null' && category !== 'undefined' && category !== '') {
-            acc[category] = (acc[category] || 0) + 1;
-          }
-          return acc;
-        }, {});
-        
-        return Object.entries(counts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
-      })() : [];
-
-    // Domain-specific metric selection
-    const primaryMetrics = (() => {
-      if (dataAnalysis.domain === 'hr') {
-        const salaryCol = dataAnalysis.numeric.find(col => 
-          col.toLowerCase().includes('salary') || 
-          col.toLowerCase().includes('wage') || 
-          col.toLowerCase().includes('compensation')
-        ) || dataAnalysis.numeric[0];
-        return salaryCol ? { column: salaryCol, stats: dataAnalysis.descriptiveStats[salaryCol] } : null;
-      } else if (dataAnalysis.domain === 'sales') {
-        const revenueCol = dataAnalysis.numeric.find(col => 
-          col.toLowerCase().includes('sales') || 
-          col.toLowerCase().includes('revenue') || 
-          col.toLowerCase().includes('amount') ||
-          col.toLowerCase().includes('total')
-        ) || dataAnalysis.numeric[0];
-        return revenueCol ? { column: revenueCol, stats: dataAnalysis.descriptiveStats[revenueCol] } : null;
-      } else if (dataAnalysis.domain === 'finance') {
-        const financeCol = dataAnalysis.numeric.find(col => 
-          col.toLowerCase().includes('expense') || 
-          col.toLowerCase().includes('cost') || 
-          col.toLowerCase().includes('budget')
-        ) || dataAnalysis.numeric[0];
-        return financeCol ? { column: financeCol, stats: dataAnalysis.descriptiveStats[financeCol] } : null;
-      } else {
-        const primaryCol = dataAnalysis.numeric[0];
-        return primaryCol ? { column: primaryCol, stats: dataAnalysis.descriptiveStats[primaryCol] } : null;
-      }
-    })();
-
-    // Build rich analysis context
-    const analysisContext = {
-      domain: dataAnalysis.domain,
-      domainConfidence: dataAnalysis.domainConfidence,
-      sampleRecords: dataRows.slice(0, 10),
-      topCategories: topCategories,
-      primaryMetrics: primaryMetrics,
-      headers: headers,
-      totalRows: dataRows.length,
-      totalColumns: headers.length,
-      descriptiveStats: dataAnalysis.descriptiveStats,
-      missingValues: dataAnalysis.missingValues,
-      categorical: dataAnalysis.categorical,
-      numeric: dataAnalysis.numeric,
-      dates: dataAnalysis.dates
-    };
-
     // Create database entry
     const { data: report, error: dbError } = await supabase
       .from('spreadsheet_reports')
@@ -188,8 +98,8 @@ serve(async (req) => {
       throw new Error('Failed to create report entry');
     }
 
-    // Start background processing with analyze edge function
-    EdgeRuntime.waitUntil(delegateToAnalyze(report.id, user.id, filePath, question, analysisContext, supabase));
+    // Start background processing
+    EdgeRuntime.waitUntil(processSpreadsheet(report.id, filePath, supabase, question));
 
     return new Response(
       JSON.stringify({ 
@@ -215,50 +125,445 @@ serve(async (req) => {
   }
 });
 
-// Delegate processing to the analyze edge function with Python service
-async function delegateToAnalyze(
-  reportId: string,
-  userId: string, 
-  filePath: string,
-  question: string | undefined,
-  analysisContext: any,
-  supabase: any
-) {
+// processSpreadsheet with this enhanced implementation
+async function processSpreadsheet(reportId: string, filePath: string, supabase: any, userQuestion?: string) {
   try {
-    console.log(`Delegating analysis for report ${reportId} to Python service`);
-    
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    
-    // Call the analyze edge function (no auth needed - it's a background function)
-    const response = await fetch(`${supabaseUrl}/functions/v1/analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        reportId,
-        userId,
-        sourcePath: filePath,
-        question: question || null,
-        analysisContext: analysisContext
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Analyze function failed:', errorText);
-      throw new Error(`Analyze function failed: ${errorText}`);
+    console.log(`Starting processing for report ${reportId}`);
+
+    // Download file from storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('spreadsheets')
+      .download(filePath);
+
+    if (downloadError || !fileData) {
+      console.error('File download error:', downloadError);
+      throw new Error('Failed to download file for processing');
     }
+
+    // Parse spreadsheet data using XLSX
+    const fileBuffer = await fileData.arrayBuffer();
+    const workbook = XLSX.read(fileBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+
+    if (!jsonData || jsonData.length === 0) throw new Error('No data found in spreadsheet');
+
+    // Normalize headers & rows
+    const headers = (jsonData[0] as any[]).map((h, i) => (h ? String(h).trim() : `Column ${i+1}`));
+    const rawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+    const dataRows = rawRows.map(row => {
+      const obj: Record<string, any> = {};
+      for (let i = 0; i < headers.length; i++) {
+        obj[headers[i]] = row[i] !== undefined ? row[i] : null;
+      }
+      return obj;
+    });
+
+  // Enhanced data analysis and intelligent chart generation
+  const dataAnalysis = analyzeDataset(headers, rawRows);
+  const chartData = generateIntelligentCharts(headers, rawRows, dataAnalysis, userQuestion);
+
+    // CRITICAL: Calculate these BEFORE OpenAI block so they're available for fallback logic
+    // Enhanced category detection using actual data values (not schema patterns)
+    const topCategories = dataAnalysis.categorical.length > 0 ? 
+      (() => {
+        const categoryCol = dataAnalysis.categorical[0];
+        const categoryIndex = headers.indexOf(categoryCol);
+        const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+          const category = String(row[categoryIndex] || 'Unspecified').trim();
+          if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+            acc[category] = (acc[category] || 0) + 1;
+          }
+          return acc;
+        }, {});
+        
+        return Object.entries(counts)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+          .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
+      })() : [];
+
+    // Domain-specific metric selection based on detected business domain
+    const primaryMetrics = (() => {
+      if (dataAnalysis.domain === 'hr') {
+        const salaryCol = dataAnalysis.numeric.find(col => 
+          col.toLowerCase().includes('salary') || 
+          col.toLowerCase().includes('wage') || 
+          col.toLowerCase().includes('compensation')
+        ) || dataAnalysis.numeric[0];
+        return salaryCol ? { column: salaryCol, stats: dataAnalysis.descriptiveStats[salaryCol] } : null;
+      } else if (dataAnalysis.domain === 'sales') {
+        const revenueCol = dataAnalysis.numeric.find(col => 
+          col.toLowerCase().includes('sales') || 
+          col.toLowerCase().includes('revenue') || 
+          col.toLowerCase().includes('amount') ||
+          col.toLowerCase().includes('total')
+        ) || dataAnalysis.numeric[0];
+        return revenueCol ? { column: revenueCol, stats: dataAnalysis.descriptiveStats[revenueCol] } : null;
+      } else if (dataAnalysis.domain === 'finance') {
+        const financeCol = dataAnalysis.numeric.find(col => 
+          col.toLowerCase().includes('expense') || 
+          col.toLowerCase().includes('cost') || 
+          col.toLowerCase().includes('budget')
+        ) || dataAnalysis.numeric[0];
+        return financeCol ? { column: financeCol, stats: dataAnalysis.descriptiveStats[financeCol] } : null;
+      } else {
+        // General case - use first numeric column
+        const primaryCol = dataAnalysis.numeric[0];
+        return primaryCol ? { column: primaryCol, stats: dataAnalysis.descriptiveStats[primaryCol] } : null;
+      }
+    })();
+
+    // Prepare payload for OpenAI
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    let summary = '';
+    let recommendations = [] as string[];
+    let openaiError = null;
+    let structuredSummary: any = null;
+
+    if (openaiApiKey) {
+      console.log('Generating AI insights with OpenAI...');
+      try {
+
+        // Domain-specific AI prompt with appropriate context and terminology
+        const domainSpecificPrompt = (() => {
+          const baseRequirements = `You are a senior ${dataAnalysis.domain} analyst providing executive-level insights. You MUST analyze the provided ${dataAnalysis.domain.toUpperCase()} data and generate specific, actionable recommendations with real numbers and percentages from the actual dataset.
+
+CRITICAL REQUIREMENTS:
+1. Use ACTUAL data values from the dataset - never use placeholder text
+2. Include specific percentages and metrics from the provided statistics  
+3. Reference actual ${dataAnalysis.categorical.length > 0 ? dataAnalysis.categorical[0] : 'category'} names and values shown in the data
+4. Provide concrete, quantified insights that executives could act on immediately
+5. Focus on ${dataAnalysis.domain}-specific metrics and KPIs only`;
+
+          if (dataAnalysis.domain === 'hr') {
+            return `${baseRequirements}
+6. Focus on workforce analytics: employee distribution, compensation analysis, department performance
+7. Avoid sales/revenue terminology - use HR-specific language (headcount, retention, compensation, etc.)
+8. Provide insights about talent management, organizational structure, and workforce optimization`;
+          } else if (dataAnalysis.domain === 'sales') {
+            return `${baseRequirements}
+6. Focus on revenue optimization, customer analysis, and sales performance metrics
+7. Include sales-specific KPIs: conversion rates, average order value, customer segmentation
+8. Provide insights about market opportunities, customer behavior, and sales strategy`;
+          } else if (dataAnalysis.domain === 'finance') {
+            return `${baseRequirements}
+6. Focus on financial performance, cost analysis, and budget optimization
+7. Include financial KPIs: cost ratios, budget variances, expense categories
+8. Provide insights about financial efficiency, cost control, and budget allocation`;
+          } else {
+            return `${baseRequirements}
+6. Focus on the most relevant business metrics identified in the data
+7. Use domain-neutral terminology appropriate to the data content
+8. Provide insights specific to the identified data patterns and business context`;
+          }
+        })();
+
+        const prompt = [
+          {
+            role: 'system',
+            content: `${domainSpecificPrompt}
+
+REQUIRED OUTPUT FORMAT (EXACT JSON STRUCTURE):
+{
+  "summary": "Executive summary with specific numbers from the dataset (e.g., 'Analysis of 1,247 ${dataAnalysis.domain} records reveals ${dataAnalysis.categorical[0] || 'primary category'} performance drives 42% of total activity')",
+  "keyFindings": [
+    "Finding with actual data values (e.g., 'Technology department has 2.3x higher average ${primaryMetrics?.column || 'value'} than Operations ($847 vs $366)')",
+    "Another insight with real percentages (e.g., 'Top performing ${dataAnalysis.categorical[0] || 'category'} shows highest performance but only represents 23% of volume')",
+    "Third finding with specific metrics (e.g., 'Top 20% of records generate 65% of total ${primaryMetrics?.column || 'value'} worth $1.2M')"
+  ],
+  "recommendations": [
+    "Action with specific targets (e.g., 'Focus on ${dataAnalysis.categorical[0] || 'top category'} optimization to capture additional 40% improvement potential')",
+    "Operational improvement with numbers (e.g., 'Expand high-performing segments - current data suggests 180% growth opportunity')",
+    "Strategic initiative with ROI (e.g., 'Optimize ${primaryMetrics?.column || 'key metrics'} to increase performance across identified segments')"
+  ],
+  "nextSteps": [
+    "Immediate action with timeline (e.g., 'Analyze top 3 ${dataAnalysis.categorical[0] || 'categories'} within 30 days')",
+    "Medium-term initiative with metrics (e.g., 'Implement optimization strategy to achieve 25% improvement by Q3')",
+    "Long-term strategy with targets (e.g., 'Scale successful patterns for sustainable growth')"
+  ]
+}
+
+NEVER use generic terms like "top-performing categories" - USE THE ACTUAL ${dataAnalysis.categorical[0] ? dataAnalysis.categorical[0].toUpperCase() : 'CATEGORY'} NAMES from the data.
+NEVER use placeholder percentages - USE THE CALCULATED STATISTICS provided.`
+          },
+          {
+            role: 'user', 
+            content: `URGENT: ${dataAnalysis.domain.toUpperCase()} DATA ANALYSIS REQUEST
+
+DATASET OVERVIEW:
+• Business Domain: ${dataAnalysis.domain.toUpperCase()} analysis (${dataAnalysis.domainConfidence}% confidence)
+• Data Scale: ${dataAnalysis.totalRows.toLocaleString()} records across ${dataAnalysis.totalColumns} business dimensions
+• Column Types: ${dataAnalysis.numeric.length} numerical metrics, ${dataAnalysis.categorical.length} categories, ${dataAnalysis.dates.length} time-based fields
+
+KEY BUSINESS METRICS:
+${primaryMetrics ? `Primary ${dataAnalysis.domain === 'hr' ? 'Compensation' : dataAnalysis.domain === 'sales' ? 'Revenue' : 'Financial'} Metric (${primaryMetrics.column}):
+- Total Value: ${primaryMetrics.stats?.sum ? `$${primaryMetrics.stats.sum.toLocaleString()}` : 'N/A'}
+- Average Value: ${primaryMetrics.stats?.mean ? `$${primaryMetrics.stats.mean.toLocaleString()}` : 'N/A'}
+- Highest Value: ${primaryMetrics.stats?.max ? `$${primaryMetrics.stats.max.toLocaleString()}` : 'N/A'}  
+- Lowest Value: ${primaryMetrics.stats?.min ? `$${primaryMetrics.stats.min.toLocaleString()}` : 'N/A'}
+- Range: ${primaryMetrics.stats?.min && primaryMetrics.stats?.max ? `$${primaryMetrics.stats.min.toLocaleString()} to $${primaryMetrics.stats.max.toLocaleString()}` : 'N/A'}` : 'No primary metrics identified'}
+
+TOP ${dataAnalysis.categorical[0] ? dataAnalysis.categorical[0].toUpperCase() : 'CATEGORY'} BREAKDOWN:
+${topCategories.length > 0 ? topCategories.join('\n') : 'No categorical data available'}
+
+STATISTICAL ANALYSIS:
+${JSON.stringify(dataAnalysis.descriptiveStats, null, 2)}
+
+DATA COMPLETENESS:
+${Object.entries(dataAnalysis.missingValues).map(([col, pct]) => `• ${col}: ${100-pct}% data quality`).join('\n')}
+
+SAMPLE RECORDS (First 5 with key fields):
+${JSON.stringify(dataRows.slice(0, 5).map((row, i) => {
+  const record: any = { RecordID: i+1 };
+  
+  // Include the most relevant fields based on domain
+  if (dataAnalysis.domain === 'hr') {
+    headers.slice(0, 6).forEach(header => {
+      if (!header.toLowerCase().includes('price') && !header.toLowerCase().includes('sales')) {
+        record[header] = row[headers.indexOf(header)];
+      }
+    });
+  } else if (dataAnalysis.domain === 'sales') {
+    headers.slice(0, 6).forEach(header => {
+      record[header] = row[headers.indexOf(header)];
+    });
+  } else {
+    headers.slice(0, 6).forEach(header => {
+      record[header] = row[headers.indexOf(header)];
+    });
+  }
+  
+  return record;
+}), null, 2)}
+
+ANALYSIS REQUEST: ${userQuestion || `Generate executive-level ${dataAnalysis.domain} insights with specific recommendations for performance optimization, efficiency improvements, and strategic growth`}
+
+DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete numbers, specific ${dataAnalysis.categorical[0] || 'category'} names, and actionable strategies with quantified impact. Use the EXACT data values provided - no generic statements allowed.`
+          }
+        ];
+
+        console.log('Sending OpenAI request with enhanced data context...');
+        
+        const requestBody = {
+          model: 'gpt-4o-mini',
+          messages: prompt,
+          temperature: 0.1,
+          max_tokens: 1500,
+          response_format: { type: "json_object" }
+        };
+
+        console.log('OpenAI request body:', JSON.stringify(requestBody, null, 2));
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (resp.ok) {
+          const js = await resp.json();
+          console.log('Raw OpenAI response status:', resp.status);
+          console.log('OpenAI response body:', JSON.stringify(js, null, 2));
+          
+          let content = js.choices?.[0]?.message?.content ?? '';
+          console.log('Raw OpenAI content:', content);
+          
+          if (!content) {
+            console.error('OpenAI returned empty content');
+            openaiError = 'OpenAI returned empty response content';
+          } else {
+            try {
+              // Since we're using response_format: json_object, content should be valid JSON
+              const parsed = JSON.parse(content);
+              console.log('Successfully parsed OpenAI JSON response:', JSON.stringify(parsed, null, 2));
+              
+              if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
+                summary = parsed.summary;
+                recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+                
+                // Store the structured data with actual AI content
+                structuredSummary = {
+                  keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [parsed.summary || 'No findings available'],
+                  additionalKPIs: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [
+                    `Processed ${dataRows.length.toLocaleString()} business records`,
+                    `Analyzed ${headers.length} key performance dimensions`,
+                    `Data integrity: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete across all fields`
+                  ],
+                  recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
+                };
+                console.log('Successfully created structured summary from OpenAI response');
+              } else {
+                console.error('OpenAI response missing required fields. Available keys:', Object.keys(parsed));
+                openaiError = `OpenAI response incomplete - missing required fields. Got: ${Object.keys(parsed).join(', ')}`;
+              }
+            } catch (e) {
+              console.error('JSON parsing failed for OpenAI response:', e);
+              console.error('Raw content that failed to parse:', content);
+              openaiError = `Failed to parse OpenAI JSON: ${e.message}`;
+            }
+          }
+        } else {
+          const errorText = await resp.text();
+          console.error('OpenAI API call failed with status:', resp.status);
+          console.error('OpenAI error response:', errorText);
+          openaiError = `OpenAI API call failed with status ${resp.status}: ${errorText}`;
+        }
+      } catch (e) {
+        console.error('OpenAI integration error:', e);
+        if (e.name === 'AbortError') {
+          openaiError = 'OpenAI request timed out after 30 seconds';
+        } else {
+          openaiError = `OpenAI integration error: ${e instanceof Error ? e.message : String(e)}`;
+        }
+      }
+    }
+
+    // Enhanced domain-specific fallback with data-driven insights if OpenAI fails
+    if (!structuredSummary) {
+      console.log('Creating enhanced fallback summary with actual data insights...');
+      
+      // Generate data-driven insights from actual statistics with domain awareness
+      const dataInsights = [];
+      
+      // Get actual category names and counts (not "Unknown")
+      const topCategory = dataAnalysis.categorical.length > 0 ? 
+        (() => {
+          const categoryCol = dataAnalysis.categorical[0];
+          const categoryIndex = headers.indexOf(categoryCol);
+          const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+            const category = String(row[categoryIndex] || 'Unspecified').trim();
+            if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+              acc[category] = (acc[category] || 0) + 1;
+            }
+            return acc;
+          }, {});
+          
+          const validEntries = Object.entries(counts).filter(([name]) => name && name !== 'Unspecified');
+          if (validEntries.length === 0) return null;
+          
+          const topEntry = validEntries.sort(([,a], [,b]) => b - a)[0];
+          return topEntry ? { 
+            name: topEntry[0], 
+            count: topEntry[1], 
+            percentage: Math.round(topEntry[1]/dataRows.length*100),
+            totalCategories: validEntries.length
+          } : null;
+        })() : null;
+
+      // Domain-specific insights with actual data
+      if (topCategory && dataAnalysis.domain === 'hr') {
+        dataInsights.push(`${topCategory.name} is the largest ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} employees (${topCategory.percentage}% of workforce) across ${topCategory.totalCategories} total ${dataAnalysis.categorical[0]}s`);
+      } else if (topCategory && dataAnalysis.domain === 'sales') {
+        dataInsights.push(`${topCategory.name} leads in ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} transactions (${topCategory.percentage}% of sales volume) from ${topCategory.totalCategories} active ${dataAnalysis.categorical[0]}s`);
+      } else if (topCategory) {
+        dataInsights.push(`${topCategory.name} represents the top ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} records (${topCategory.percentage}% of dataset) among ${topCategory.totalCategories} categories`);
+      }
+      
+      // Domain-specific metric insights
+      const primaryInsight = primaryMetrics && primaryMetrics.stats ?
+        (() => {
+          if (dataAnalysis.domain === 'hr') {
+            return `Employee ${primaryMetrics.column.toLowerCase()} analysis shows average of $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'} with total payroll of $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`;
+          } else if (dataAnalysis.domain === 'sales') {
+            return `Revenue analysis shows average transaction value of $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'} with total sales of $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`;
+          } else {
+            return `${primaryMetrics.column} analysis shows average value of $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'} with total sum of $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`;
+          }
+        })() : null;
+      
+      if (primaryInsight) {
+        dataInsights.push(primaryInsight);
+      }
+      
+      dataInsights.push(`Data quality assessment: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% completeness across ${headers.length} dimensions`);
+
+      summary = `Analysis of ${dataRows.length.toLocaleString()} ${dataAnalysis.domain} records reveals key performance patterns and optimization opportunities${topCategory ? ` with ${topCategory.name} leading the ${dataAnalysis.categorical[0]} segment` : ''}.`;
+      
+      // Domain-specific recommendations based on actual insights
+      const dataRecommendations = [];
+      if (topCategory) {
+        if (dataAnalysis.domain === 'hr') {
+          dataRecommendations.push(`Focus workforce planning on ${topCategory.name} ${dataAnalysis.categorical[0]} which represents ${topCategory.percentage}% of your ${topCategory.count.toLocaleString()} employees`);
+        } else if (dataAnalysis.domain === 'sales') {
+          dataRecommendations.push(`Prioritize ${topCategory.name} ${dataAnalysis.categorical[0]} strategy as it drives ${topCategory.percentage}% of transaction volume (${topCategory.count.toLocaleString()} sales)`);
+        } else {
+          dataRecommendations.push(`Focus resources on ${topCategory.name} segment which represents ${topCategory.percentage}% of your business volume`);
+        }
+      }
+      
+      if (primaryMetrics && primaryMetrics.stats && primaryMetrics.stats.mean) {
+        if (dataAnalysis.domain === 'hr') {
+          dataRecommendations.push(`Review compensation strategy around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average ${primaryMetrics.column.toLowerCase()} benchmark`);
+        } else if (dataAnalysis.domain === 'sales') {
+          dataRecommendations.push(`Optimize revenue strategy around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average transaction value to increase sales performance`);
+        } else {
+          dataRecommendations.push(`Optimize strategy around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average ${primaryMetrics.column.toLowerCase()} value`);
+        }
+      }
+      
+      if (dataAnalysis.domain !== 'general') {
+        dataRecommendations.push(`Leverage ${dataAnalysis.domain}-specific insights with ${dataAnalysis.domainConfidence}% confidence for targeted strategic decisions`);
+      }
+      
+      recommendations = dataRecommendations.length > 0 ? dataRecommendations : [
+        "Implement data-driven decision making based on statistical analysis",
+        "Focus on highest-volume segments for maximum impact", 
+        "Establish performance monitoring using identified key metrics"
+      ];
+
+      structuredSummary = {
+        keyFindings: dataInsights.length > 0 ? dataInsights : [
+          `Processed ${dataRows.length.toLocaleString()} business records across ${headers.length} dimensions`,
+          `Identified ${dataAnalysis.numeric.length} quantitative metrics and ${dataAnalysis.categorical.length} categorical segments`,
+          `Domain analysis indicates ${dataAnalysis.domain} focus with ${dataAnalysis.domainConfidence}% confidence`
+        ],
+        additionalKPIs: [
+          `Total records analyzed: ${dataRows.length.toLocaleString()}`,
+          `Business dimensions covered: ${headers.length}`,
+          `Data quality score: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}%`,
+          `Domain classification: ${dataAnalysis.domain} (${dataAnalysis.domainConfidence}% confidence)`
+        ],
+        recommendations: recommendations
+      };
+      
+      console.log('Created enhanced fallback with data-driven insights:', structuredSummary);
+    }
+
+    // Update report in database with correct column names
+    const updateData: any = {
+      processing_status: 'completed',
+      text_summary: structuredSummary,
+      chart_data: chartData,
+      row_count: dataRows.length,
+      column_count: headers.length
+    };
     
-    const result = await response.json();
-    console.log('Analysis completed successfully:', result);
-    
+    if (openaiError) {
+      updateData.error_message = openaiError;
+    }
+
+    await supabase.from('spreadsheet_reports').update(updateData).eq('id', reportId);
+
+    console.log('Report processed:', { summary, recommendations, openaiError });
+
   } catch (e) {
-    console.error('Error delegating to analyze function:', e);
+    console.error('Spreadsheet processing error:', e);
     await supabase.from('spreadsheet_reports').update({
       processing_status: 'failed',
-      error_message: `Failed to delegate to analyze function: ${e instanceof Error ? e.message : String(e)}`
+      error_message: `Spreadsheet processing error: ${e instanceof Error ? e.message : String(e)}`
     }).eq('id', reportId);
+    return;
   }
 }
 

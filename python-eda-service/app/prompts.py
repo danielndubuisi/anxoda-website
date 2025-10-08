@@ -33,31 +33,17 @@ CRITICAL: Provide specific, quantified insights. Use actual percentages, ratios,
 USER_PROMPT_TEMPLATE = """
 DATASET CONTEXT: {context}
 
-BUSINESS DOMAIN: {domain_type} analysis (Confidence: {domain_confidence}%)
-
 STATISTICAL ANALYSIS: {kpis}
-
-TOP CATEGORIES: {top_categories}
-
-PRIMARY METRIC: {primary_metric_name}
-
-SAMPLE RECORDS (Real Data):
-{sample_records}
 
 BUSINESS QUESTION: {question}
 
-CRITICAL INSTRUCTIONS:
-- This is a {domain_type} dataset - use {domain_type}-specific terminology ONLY
-- Reference ACTUAL category names from TOP CATEGORIES above: {top_categories}
-- Use ACTUAL metric names: {primary_metric_name}
-- Quote specific values and percentages from the provided statistics
-- NEVER use placeholder text like "Unknown", "Category X", or generic terms
-- Focus on {domain_type}-relevant KPIs only (no generic metrics)
-- Provide quantified insights executives can act on immediately
-- Structure insights like a senior {domain_type} consultant presenting to C-suite
-
-DOMAIN-SPECIFIC FOCUS:
-{domain_instructions}
+INSTRUCTIONS:
+- Analyze this {domain_type} dataset with professional depth
+- Identify top 3 most impactful business insights with specific metrics
+- Provide strategic recommendations that drive measurable business outcomes
+- Focus on revenue optimization, operational efficiency, and growth opportunities
+- Include specific percentages, dollar amounts, and performance indicators where available
+- Structure insights like a senior consultant would present to C-level executives
 
 Respond with JSON only, no additional text or formatting.
 """
