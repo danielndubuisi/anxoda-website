@@ -564,16 +564,24 @@ const Dashboard = () => {
                     </TabsContent>
 
                     <TabsContent value="analyzer" className="space-y-6">
-                        <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
-                        
-                        {/* Report History Section */}
-                        <ReportHistory 
-                            onViewReport={(reportId) => {
-                                setSelectedReportId(reportId);
-                                // Optional: Could switch to a different view or modal
-                            }}
-                            refreshTrigger={refreshTrigger}
-                        />
+                        {selectedReportId ? (
+                            <ReportViewer 
+                                reportId={selectedReportId}
+                                onBack={() => setSelectedReportId(null)}
+                            />
+                        ) : (
+                            <>
+                                <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
+                                
+                                {/* Report History Section */}
+                                <ReportHistory 
+                                    onViewReport={(reportId) => {
+                                        setSelectedReportId(reportId);
+                                    }}
+                                    refreshTrigger={refreshTrigger}
+                                />
+                            </>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="profile" className="space-y-6">
