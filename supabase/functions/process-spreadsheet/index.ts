@@ -540,9 +540,24 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
       console.log('Created enhanced fallback with data-driven insights:', structuredSummary);
     }
 
-    // Update report in database with correct column names
+    // Prepare rich analysis context for Python service
+    const analysisContext = {
+      domain: dataAnalysis.domain,
+      domainConfidence: dataAnalysis.domainConfidence,
+      sampleRecords: dataRows.slice(0, 10),
+      topCategories: topCategories,
+      primaryMetrics: primaryMetrics,
+      headers: headers,
+      totalRows: dataRows.length,
+      totalColumns: headers.length,
+      descriptiveStats: dataAnalysis.descriptiveStats,
+      categorical: dataAnalysis.categorical,
+      numeric: dataAnalysis.numeric,
+    };
+
+    // Update report in database - status set to generating_pdf (Python will complete it)
     const updateData: any = {
-      processing_status: 'completed',
+      processing_status: 'generating_pdf',
       text_summary: structuredSummary,
       chart_data: chartData,
       row_count: dataRows.length,
@@ -555,7 +570,18 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
 
     await supabase.from('spreadsheet_reports').update(updateData).eq('id', reportId);
 
-    console.log('Report processed:', { summary, recommendations, openaiError });
+    console.log('Report text analysis completed, delegating to Python for PDF generation...');
+
+    // Delegate to Python service for PDF and image generation only
+    await delegateToPythonForVisualization(
+      reportId, 
+      filePath, 
+      supabase, 
+      structuredSummary,
+      chartData,
+      analysisContext,
+      userQuestion
+    );
 
   } catch (e) {
     console.error('Spreadsheet processing error:', e);
@@ -564,6 +590,55 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
       error_message: `Spreadsheet processing error: ${e instanceof Error ? e.message : String(e)}`
     }).eq('id', reportId);
     return;
+  }
+}
+
+// Delegate to Python for PDF and image generation only (AI insights already computed)
+async function delegateToPythonForVisualization(
+  reportId: string,
+  filePath: string,
+  supabase: any,
+  aiInsights: any,
+  chartData: any,
+  analysisContext: any,
+  question?: string
+) {
+  try {
+    console.log('Calling Python service for PDF/image generation...');
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated for Python delegation');
+    }
+
+    const response = await supabase.functions.invoke('analyze', {
+      body: {
+        reportId,
+        userId: user.id,
+        sourcePath: filePath,
+        question: question || null,
+        skipAI: true, // Flag to tell Python to skip OpenAI call
+        aiInsights, // Pre-computed insights from this function
+        analysisContext // Rich context for potential use
+      }
+    });
+    
+    if (response.error) {
+      console.error('Python visualization service failed:', response.error);
+      // Update status back to failed
+      await supabase.from('spreadsheet_reports').update({
+        processing_status: 'failed',
+        error_message: `PDF generation failed: ${response.error.message}`
+      }).eq('id', reportId);
+    } else {
+      console.log('Python service completed successfully');
+    }
+  } catch (error) {
+    console.error('Error calling Python visualization service:', error);
+    await supabase.from('spreadsheet_reports').update({
+      processing_status: 'failed',
+      error_message: `Failed to generate PDF: ${error instanceof Error ? error.message : String(error)}`
+    }).eq('id', reportId);
   }
 }
 

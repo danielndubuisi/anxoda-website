@@ -34,6 +34,9 @@ class AnalyzePayload(BaseModel):
     userId: str
     signedUrl: str
     question: str | None = None
+    skipAI: bool = False
+    aiInsights: dict | None = None
+    analysisContext: dict | None = None
 
 def download_with_fallback(signed_url: str) -> bytes:
     if not signed_url.lower().startswith("http"):
@@ -80,40 +83,58 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
         supa.upload(REPORTS_BUCKET, p, img, content_type="image/png")
         image_paths.append(p)
 
-    # 4) AI narrative
-    summary_json = {"summary": "No summary generated.", "keyFindings": [], "recommendations": [], "nextSteps": []}
-    if OPENAI_API_KEY:
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        context = json.dumps({"schema": chart_json.get("schema"), "kpi": chart_json.get("kpi")}, ensure_ascii=False)
-        domain_type = "business" # Default domain
-        prompt = USER_PROMPT_TEMPLATE.format(
-            context=context, 
-            kpis=json.dumps(chart_json.get("kpi")), 
-            question=payload.question or "(none)",
-            domain_type=domain_type
-        )
-        try:
-            resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.0,
-                max_tokens=900,
+    # 4) AI narrative - use pre-computed insights if skipAI flag is set
+    if payload.skipAI and payload.aiInsights:
+        # Use pre-computed insights from TypeScript pipeline
+        summary_json = payload.aiInsights
+        logging.info("Using pre-computed AI insights from process-spreadsheet pipeline")
+    else:
+        # Fallback: Generate insights using Python's OpenAI call (legacy behavior)
+        summary_json = {"summary": "No summary generated.", "keyFindings": [], "recommendations": [], "nextSteps": []}
+        if OPENAI_API_KEY:
+            client = OpenAI(api_key=OPENAI_API_KEY)
+            
+            # Use rich context if available, otherwise fall back to basic context
+            if payload.analysisContext:
+                context = json.dumps(payload.analysisContext, ensure_ascii=False)
+                domain_type = payload.analysisContext.get("domain", "business")
+            else:
+                context = json.dumps({"schema": chart_json.get("schema"), "kpi": chart_json.get("kpi")}, ensure_ascii=False)
+                domain_type = "business"
+            
+            prompt = USER_PROMPT_TEMPLATE.format(
+                context=context, 
+                kpis=json.dumps(chart_json.get("kpi")), 
+                question=payload.question or "(none)",
+                domain_type=domain_type
             )
-            msg = resp.choices[0].message.content
-            summary_json = json.loads(msg)
-        except Exception as e:
-            summary_json = {"summary": f"OpenAI failed: {e}", "keyFindings": [], "recommendations": [], "nextSteps": []}
+            try:
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=900,
+                )
+                msg = resp.choices[0].message.content
+                summary_json = json.loads(msg)
+            except Exception as e:
+                summary_json = {"summary": f"OpenAI failed: {e}", "keyFindings": [], "recommendations": [], "nextSteps": []}
 
-    # 5) Update DB
-    supa.update_report(payload.reportId, {
+    # 5) Update DB - only update PDF paths and status, don't overwrite text_summary if skipAI
+    update_data = {
         "processing_status": "completed",
-        "text_summary": summary_json,
-        "chart_data": chart_json,
         "report_pdf_path": pdf_path,
         "image_paths": image_paths,
-    })
+    }
+    
+    # Only update text_summary and chart_data if we generated them (not using pre-computed)
+    if not payload.skipAI:
+        update_data["text_summary"] = summary_json
+        update_data["chart_data"] = chart_json
+    
+    supa.update_report(payload.reportId, update_data)
 
     return {"ok": True, "pdf": pdf_path, "images": image_paths, "summary": summary_json, "chart_data": chart_json}
