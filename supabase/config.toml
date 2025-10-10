@@ -42,3 +42,6 @@ verify_jwt = true
 
 [functions.delete-report]
 verify_jwt = true
+
+[functions.analyze]
+verify_jwt = true

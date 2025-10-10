@@ -89,26 +89,69 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
         summary_json = payload.aiInsights
         logging.info("Using pre-computed AI insights from process-spreadsheet pipeline")
     else:
-        # Fallback: Generate insights using Python's OpenAI call (legacy behavior)
+        # Try AI providers in priority order: Lovable AI → OpenAI → Basic fallback
+        LOVABLE_API_KEY = os.getenv("LOVABLE_API_KEY")
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        
         summary_json = {"summary": "No summary generated.", "keyFindings": [], "recommendations": [], "nextSteps": []}
-        if OPENAI_API_KEY:
-            client = OpenAI(api_key=OPENAI_API_KEY)
-            
-            # Use rich context if available, otherwise fall back to basic context
-            if payload.analysisContext:
-                context = json.dumps(payload.analysisContext, ensure_ascii=False)
-                domain_type = payload.analysisContext.get("domain", "business")
-            else:
-                context = json.dumps({"schema": chart_json.get("schema"), "kpi": chart_json.get("kpi")}, ensure_ascii=False)
-                domain_type = "business"
-            
-            prompt = USER_PROMPT_TEMPLATE.format(
-                context=context, 
-                kpis=json.dumps(chart_json.get("kpi")), 
-                question=payload.question or "(none)",
-                domain_type=domain_type
-            )
+        
+        # Prepare context for AI
+        if payload.analysisContext:
+            context = json.dumps(payload.analysisContext, ensure_ascii=False)
+            domain_type = payload.analysisContext.get("domain", "business")
+        else:
+            context = json.dumps({"schema": chart_json.get("schema"), "kpi": chart_json.get("kpi")}, ensure_ascii=False)
+            domain_type = "business"
+        
+        prompt = USER_PROMPT_TEMPLATE.format(
+            context=context, 
+            kpis=json.dumps(chart_json.get("kpi")), 
+            question=payload.question or "(none)",
+            domain_type=domain_type
+        )
+        
+        # Try Lovable AI first
+        if LOVABLE_API_KEY:
+            logging.info("Attempting Lovable AI for insights generation")
             try:
+                import requests
+                response = requests.post(
+                    "https://ai.gateway.lovable.dev/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {LOVABLE_API_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "google/gemini-2.5-flash",
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.0,
+                        "max_tokens": 900,
+                        "response_format": {"type": "json_object"}
+                    },
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    summary_json = json.loads(content)
+                    logging.info("Lovable AI insights generated successfully")
+                elif response.status_code == 429:
+                    logging.warning("Lovable AI rate limit exceeded, trying OpenAI")
+                elif response.status_code == 402:
+                    logging.warning("Lovable AI quota exceeded, trying OpenAI")
+                else:
+                    logging.warning(f"Lovable AI failed with status {response.status_code}, trying OpenAI")
+            except Exception as e:
+                logging.error(f"Lovable AI error: {e}, trying OpenAI")
+        
+        # Try OpenAI if Lovable AI failed or is unavailable
+        if OPENAI_API_KEY and summary_json.get("summary") == "No summary generated.":
+            logging.info("Attempting OpenAI for insights generation")
+            try:
+                client = OpenAI(api_key=OPENAI_API_KEY)
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -120,8 +163,14 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
                 )
                 msg = resp.choices[0].message.content
                 summary_json = json.loads(msg)
+                logging.info("OpenAI insights generated successfully")
             except Exception as e:
-                summary_json = {"summary": f"OpenAI failed: {e}", "keyFindings": [], "recommendations": [], "nextSteps": []}
+                logging.error(f"OpenAI error: {e}")
+                summary_json = {"summary": f"AI generation failed: {e}", "keyFindings": [], "recommendations": [], "nextSteps": []}
+        
+        # If both AI providers failed, summary_json will have the default "No summary generated."
+        if summary_json.get("summary") == "No summary generated.":
+            logging.warning("All AI providers unavailable or failed, using basic fallback")
 
     # 5) Update DB - only update PDF paths and status, don't overwrite text_summary if skipAI
     update_data = {

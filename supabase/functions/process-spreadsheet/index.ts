@@ -344,94 +344,125 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
           }
         ];
 
-        console.log('Sending OpenAI request with enhanced data context...');
+        // Determine which AI service to use (Lovable AI → OpenAI → Statistical Fallback)
+        const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+        const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
         
-        const requestBody = {
-          model: 'gpt-4o-mini',
-          messages: prompt,
-          temperature: 0.1,
-          max_tokens: 1500,
-          response_format: { type: "json_object" }
-        };
+        let aiProvider = 'none';
+        let aiApiKey = null;
+        let aiEndpoint = null;
+        let aiModel = 'gpt-4o-mini';
+        
+        if (lovableApiKey) {
+          aiProvider = 'lovable';
+          aiApiKey = lovableApiKey;
+          aiEndpoint = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+          aiModel = 'google/gemini-2.5-flash';
+          console.log('Using Lovable AI (primary provider) with Gemini 2.5 Flash');
+        } else if (openaiApiKey) {
+          aiProvider = 'openai';
+          aiApiKey = openaiApiKey;
+          aiEndpoint = 'https://api.openai.com/v1/chat/completions';
+          aiModel = 'gpt-4o-mini';
+          console.log('Using OpenAI (secondary provider) with GPT-4o-mini');
+        } else {
+          console.log('No AI provider available, will use enhanced statistical fallback');
+        }
 
-        console.log('OpenAI request body:', JSON.stringify(requestBody, null, 2));
+        // Make AI API call if provider available
+        if (aiProvider !== 'none') {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+          const requestBody = {
+            model: aiModel,
+            messages: prompt,
+            temperature: 0.1,
+            max_tokens: 1500,
+            response_format: { type: "json_object" }
+          };
 
-        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal
-        });
+          console.log(`${aiProvider.toUpperCase()} request body:`, JSON.stringify(requestBody, null, 2));
 
-        clearTimeout(timeoutId);
+          const resp = await fetch(aiEndpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${aiApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal
+          });
 
-        if (resp.ok) {
-          const js = await resp.json();
-          console.log('Raw OpenAI response status:', resp.status);
-          console.log('OpenAI response body:', JSON.stringify(js, null, 2));
-          
-          let content = js.choices?.[0]?.message?.content ?? '';
-          console.log('Raw OpenAI content:', content);
-          
-          if (!content) {
-            console.error('OpenAI returned empty content');
-            openaiError = 'OpenAI returned empty response content';
+          clearTimeout(timeoutId);
+
+          // Handle rate limits and quota errors
+          if (resp.status === 429) {
+            console.warn(`${aiProvider.toUpperCase()} rate limit exceeded, falling back to enhanced statistical analysis`);
+            openaiError = 'rate_limit';
+          } else if (resp.status === 402) {
+            console.warn(`${aiProvider.toUpperCase()} quota exceeded, falling back to enhanced statistical analysis`);
+            openaiError = 'insufficient_quota';
+          } else if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error(`${aiProvider.toUpperCase()} API error (${resp.status}):`, errorText);
+            openaiError = `api_error_${resp.status}`;
           } else {
-            try {
-              // Since we're using response_format: json_object, content should be valid JSON
-              const parsed = JSON.parse(content);
-              console.log('Successfully parsed OpenAI JSON response:', JSON.stringify(parsed, null, 2));
-              
-              if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
-                summary = parsed.summary;
-                recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+            // Success - parse response
+            const js = await resp.json();
+            console.log(`Raw ${aiProvider.toUpperCase()} response status:`, resp.status);
+            console.log(`${aiProvider.toUpperCase()} response body:`, JSON.stringify(js, null, 2));
+            
+            let content = js.choices?.[0]?.message?.content ?? '';
+            console.log(`Raw ${aiProvider.toUpperCase()} content:`, content);
+            
+            if (!content) {
+              console.error(`${aiProvider.toUpperCase()} returned empty content`);
+              openaiError = `${aiProvider.toUpperCase()} returned empty response content`;
+            } else {
+              try {
+                const parsed = JSON.parse(content);
+                console.log(`Successfully parsed ${aiProvider.toUpperCase()} JSON response:`, JSON.stringify(parsed, null, 2));
                 
-                // Store the structured data with actual AI content
-                structuredSummary = {
-                  keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [parsed.summary || 'No findings available'],
-                  additionalKPIs: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [
-                    `Processed ${dataRows.length.toLocaleString()} business records`,
-                    `Analyzed ${headers.length} key performance dimensions`,
-                    `Data integrity: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete across all fields`
-                  ],
-                  recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
-                };
-                console.log('Successfully created structured summary from OpenAI response');
-              } else {
-                console.error('OpenAI response missing required fields. Available keys:', Object.keys(parsed));
-                openaiError = `OpenAI response incomplete - missing required fields. Got: ${Object.keys(parsed).join(', ')}`;
+                if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
+                  summary = parsed.summary;
+                  recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+                  
+                  structuredSummary = {
+                    keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [parsed.summary || 'No findings available'],
+                    additionalKPIs: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [
+                      `Processed ${dataRows.length.toLocaleString()} business records`,
+                      `Analyzed ${headers.length} key performance dimensions`,
+                      `Data integrity: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% complete across all fields`
+                    ],
+                    recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
+                  };
+                  console.log(`Successfully created structured summary from ${aiProvider.toUpperCase()} response`);
+                } else {
+                  console.error(`${aiProvider.toUpperCase()} response missing required fields. Available keys:`, Object.keys(parsed));
+                  openaiError = `${aiProvider.toUpperCase()} response incomplete - missing required fields. Got: ${Object.keys(parsed).join(', ')}`;
+                }
+              } catch (e) {
+                console.error(`JSON parsing failed for ${aiProvider.toUpperCase()} response:`, e);
+                console.error('Raw content that failed to parse:', content);
+                openaiError = `Failed to parse ${aiProvider.toUpperCase()} JSON: ${e.message}`;
               }
-            } catch (e) {
-              console.error('JSON parsing failed for OpenAI response:', e);
-              console.error('Raw content that failed to parse:', content);
-              openaiError = `Failed to parse OpenAI JSON: ${e.message}`;
             }
           }
-        } else {
-          const errorText = await resp.text();
-          console.error('OpenAI API call failed with status:', resp.status);
-          console.error('OpenAI error response:', errorText);
-          openaiError = `OpenAI API call failed with status ${resp.status}: ${errorText}`;
         }
       } catch (e) {
-        console.error('OpenAI integration error:', e);
+        console.error('AI integration error:', e);
         if (e.name === 'AbortError') {
-          openaiError = 'OpenAI request timed out after 30 seconds';
+          openaiError = 'AI request timed out after 30 seconds';
         } else {
-          openaiError = `OpenAI integration error: ${e instanceof Error ? e.message : String(e)}`;
+          openaiError = `AI integration error: ${e instanceof Error ? e.message : String(e)}`;
         }
       }
     }
 
-    // Enhanced domain-specific fallback with data-driven insights if OpenAI fails
+    // Enhanced domain-specific fallback with data-driven insights if AI fails or is unavailable
     if (!structuredSummary) {
-      console.log('Creating enhanced fallback summary with actual data insights...');
+      console.log('Using enhanced statistical fallback to generate data-driven insights...');
       
       // Generate data-driven insights from actual statistics with domain awareness
       const dataInsights = [];
