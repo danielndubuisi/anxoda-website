@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -109,12 +109,16 @@ export type Database = {
           chart_data: Json | null
           column_count: number | null
           created_at: string
+          error_message: string | null
           file_path: string
           id: string
+          image_paths: Json | null
+          kpis: Json | null
           original_filename: string
           processing_status: string
+          report_pdf_path: string | null
           row_count: number | null
-          text_summary: string | null
+          text_summary: Json | null
           title: string
           updated_at: string
           user_id: string
@@ -123,12 +127,16 @@ export type Database = {
           chart_data?: Json | null
           column_count?: number | null
           created_at?: string
+          error_message?: string | null
           file_path: string
           id?: string
+          image_paths?: Json | null
+          kpis?: Json | null
           original_filename: string
           processing_status?: string
+          report_pdf_path?: string | null
           row_count?: number | null
-          text_summary?: string | null
+          text_summary?: Json | null
           title: string
           updated_at?: string
           user_id: string
@@ -137,14 +145,39 @@ export type Database = {
           chart_data?: Json | null
           column_count?: number | null
           created_at?: string
+          error_message?: string | null
           file_path?: string
           id?: string
+          image_paths?: Json | null
+          kpis?: Json | null
           original_filename?: string
           processing_status?: string
+          report_pdf_path?: string | null
           row_count?: number | null
-          text_summary?: string | null
+          text_summary?: Json | null
           title?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -193,9 +226,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       plan_type: "free" | "basic" | "premium" | "enterprise"
     }
     CompositeTypes: {
@@ -324,6 +364,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       plan_type: ["free", "basic", "premium", "enterprise"],
     },
   },
