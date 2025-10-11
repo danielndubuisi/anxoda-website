@@ -52,36 +52,53 @@ def download_with_fallback(signed_url: str) -> bytes:
 
 @app.post("/analyze")
 def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
+    logging.info(f"=== Analyze Request Started ===")
+    logging.info(f"Report ID: {payload.reportId}")
+    logging.info(f"User ID: {payload.userId}")
+    logging.info(f"Signed URL: {payload.signedUrl[:60]}...")
+    logging.info(f"Skip AI: {payload.skipAI}")
+    logging.info(f"Has Pre-computed Insights: {payload.aiInsights is not None}")
+    
     expected = f"Bearer {AUTH_TOKEN}" if AUTH_TOKEN else None
     if expected and authorization != expected:
+        logging.error(f"Unauthorized request for report {payload.reportId}")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # 1) Download file
+    logging.info(f"Downloading file from signed URL for report {payload.reportId}")
     try:
         content = download_with_fallback(payload.signedUrl)
+        logging.info(f"File downloaded successfully: {len(content)} bytes")
     except Exception as e:
+        logging.error(f"Download failed for report {payload.reportId}: {e}")
         supa.update_report(payload.reportId, {"processing_status": "failed", "error": f"Download failed: {e}"})
         raise HTTPException(400, detail=f"Download failed: {e}")
 
     # 2) Run EDA
+    logging.info(f"Running EDA analysis for report {payload.reportId}")
     try:
         chart_json, images, pdf_bytes = eda_from_bytes(content)
+        logging.info(f"EDA completed: {len(images)} images generated, PDF size: {len(pdf_bytes)} bytes")
     except Exception as e:
+        logging.error(f"EDA failed for report {payload.reportId}: {e}")
         supa.update_report(payload.reportId, {"processing_status": "failed", "error": f"EDA failed: {e}"})
         raise HTTPException(500, detail=f"EDA failed: {e}")
 
     # 3) Upload outputs
+    logging.info(f"Uploading outputs to {REPORTS_BUCKET} bucket for report {payload.reportId}")
     from datetime import datetime
     ts = datetime.utcnow().strftime('%Y%m%dT%H%M%S')
     base = f"{payload.userId}/{payload.reportId}/{ts}"
     pdf_path = f"{base}/eda_report.pdf"
     supa.upload(REPORTS_BUCKET, pdf_path, pdf_bytes, content_type="application/pdf")
+    logging.info(f"PDF uploaded: {pdf_path}")
 
     image_paths = []
     for name, img in images:
         p = f"{base}/images/{name}"
         supa.upload(REPORTS_BUCKET, p, img, content_type="image/png")
         image_paths.append(p)
+    logging.info(f"Uploaded {len(image_paths)} images")
 
     # 4) AI narrative - use pre-computed insights if skipAI flag is set
     if payload.skipAI and payload.aiInsights:
@@ -173,6 +190,7 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
             logging.warning("All AI providers unavailable or failed, using basic fallback")
 
     # 5) Update DB - only update PDF paths and status, don't overwrite text_summary if skipAI
+    logging.info(f"Updating database for report {payload.reportId}")
     update_data = {
         "processing_status": "completed",
         "report_pdf_path": pdf_path,
@@ -183,7 +201,11 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
     if not payload.skipAI:
         update_data["text_summary"] = summary_json
         update_data["chart_data"] = chart_json
+        logging.info(f"Updated with fresh AI insights and chart data")
+    else:
+        logging.info(f"Using pre-computed insights from process-spreadsheet")
     
     supa.update_report(payload.reportId, update_data)
-
+    
+    logging.info(f"=== Analysis Completed Successfully for report {payload.reportId} ===")
     return {"ok": True, "pdf": pdf_path, "images": image_paths, "summary": summary_json, "chart_data": chart_json}
