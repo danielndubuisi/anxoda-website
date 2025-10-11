@@ -601,17 +601,14 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
 
     await supabase.from('spreadsheet_reports').update(updateData).eq('id', reportId);
 
-    console.log('Report text analysis completed, delegating to Python for PDF generation...');
+    console.log('Report text analysis completed, generating PDF...');
 
-    // Delegate to Python service for PDF and image generation only
-    await delegateToPythonForVisualization(
-      reportId, 
-      filePath, 
-      supabase, 
+    // Generate PDF report using JavaScript edge function
+    await generatePDFReport(
+      reportId,
+      user.id,
       structuredSummary,
-      chartData,
-      analysisContext,
-      userQuestion
+      chartData
     );
 
   } catch (e) {
@@ -624,52 +621,53 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
   }
 }
 
-// Delegate to Python for PDF and image generation only (AI insights already computed)
-async function delegateToPythonForVisualization(
+// Generate PDF report using JavaScript edge function
+async function generatePDFReport(
   reportId: string,
-  filePath: string,
-  supabase: any,
+  userId: string,
   aiInsights: any,
-  chartData: any,
-  analysisContext: any,
-  question?: string
-) {
+  chartData: any[]
+): Promise<void> {
   try {
-    console.log('Calling Python service for PDF/image generation...');
+    console.log(`Calling generate-pdf function for report ${reportId}`);
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error('User not authenticated for Python delegation');
-    }
-
-    const response = await supabase.functions.invoke('analyze', {
+    // Get Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    
+    const response = await supabase.functions.invoke('generate-pdf', {
       body: {
         reportId,
-        userId: user.id,
-        sourcePath: filePath,
-        question: question || null,
-        skipAI: true, // Flag to tell Python to skip OpenAI call
-        aiInsights, // Pre-computed insights from this function
-        analysisContext // Rich context for potential use
+        userId,
+        aiInsights,
+        chartData
       }
     });
-    
+
     if (response.error) {
-      console.error('Python visualization service failed:', response.error);
-      // Update status back to failed
-      await supabase.from('spreadsheet_reports').update({
-        processing_status: 'failed',
-        error_message: `PDF generation failed: ${response.error.message}`
-      }).eq('id', reportId);
-    } else {
-      console.log('Python service completed successfully');
+      console.error('PDF generation error:', response.error);
+      throw new Error(`PDF generation failed: ${response.error.message}`);
     }
+
+    console.log('✅ PDF generated successfully:', response.data);
   } catch (error) {
-    console.error('Error calling Python visualization service:', error);
-    await supabase.from('spreadsheet_reports').update({
-      processing_status: 'failed',
-      error_message: `Failed to generate PDF: ${error instanceof Error ? error.message : String(error)}`
-    }).eq('id', reportId);
+    console.error('Failed to generate PDF:', error);
+    
+    // Update report status to failed
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    
+    await supabase
+      .from('spreadsheet_reports')
+      .update({
+        processing_status: 'failed',
+        error_message: `PDF generation failed: ${error instanceof Error ? error.message : String(error)}`
+      })
+      .eq('id', reportId);
+    
+    throw error;
   }
 }
 
