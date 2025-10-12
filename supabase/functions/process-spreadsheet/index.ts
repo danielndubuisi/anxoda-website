@@ -603,13 +603,29 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
 
     console.log('Report text analysis completed, generating PDF...');
 
-    // Generate PDF report using JavaScript edge function
-    await generatePDFReport(
-      reportId,
-      user.id,
-      structuredSummary,
-      chartData
-    );
+    // Extract userId from filePath (format: {userId}/{timestamp}_{filename})
+    const userId = filePath.split('/')[0];
+    if (!userId) {
+      throw new Error('Invalid file path: cannot extract user ID');
+    }
+
+    // Generate PDF report using JavaScript edge function with error recovery
+    try {
+      await generatePDFReport(
+        reportId,
+        userId,
+        structuredSummary,
+        chartData
+      );
+    } catch (pdfError) {
+      console.error('PDF generation failed, but AI insights are saved:', pdfError);
+      
+      // Update report with AI insights even if PDF fails
+      await supabase.from('spreadsheet_reports').update({
+        processing_status: 'completed',
+        error_message: `PDF generation failed: ${pdfError instanceof Error ? pdfError.message : String(pdfError)}. AI insights are available.`
+      }).eq('id', reportId);
+    }
 
   } catch (e) {
     console.error('Spreadsheet processing error:', e);
