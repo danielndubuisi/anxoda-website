@@ -611,19 +611,35 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
 
     // Generate PDF report using JavaScript edge function with error recovery
     try {
-      await generatePDFReport(
+      const pdfResult = await generatePDFReport(
         reportId,
         userId,
         structuredSummary,
         chartData
       );
+      
+      // Update with successful PDF generation - preserve AI insights
+      await supabase.from('spreadsheet_reports').update({
+        processing_status: 'completed',
+        report_pdf_path: pdfResult.pdfPath,
+        image_paths: pdfResult.imagePaths,
+        text_summary: structuredSummary,
+        chart_data: chartData,
+        updated_at: new Date().toISOString()
+      }).eq('id', reportId);
+      
+      console.log('✅ Report completed with PDF and AI insights preserved');
+      
     } catch (pdfError) {
       console.error('PDF generation failed, but AI insights are saved:', pdfError);
       
       // Update report with AI insights even if PDF fails
       await supabase.from('spreadsheet_reports').update({
         processing_status: 'completed',
-        error_message: `PDF generation failed: ${pdfError instanceof Error ? pdfError.message : String(pdfError)}. AI insights are available.`
+        text_summary: structuredSummary,
+        chart_data: chartData,
+        error_message: `PDF generation failed: ${pdfError instanceof Error ? pdfError.message : String(pdfError)}. AI insights are available.`,
+        updated_at: new Date().toISOString()
       }).eq('id', reportId);
     }
 
@@ -643,7 +659,7 @@ async function generatePDFReport(
   userId: string,
   aiInsights: any,
   chartData: any[]
-): Promise<void> {
+): Promise<{ pdfPath: string; imagePaths: string[] }> {
   try {
     console.log(`Calling generate-pdf function for report ${reportId}`);
     
@@ -666,23 +682,20 @@ async function generatePDFReport(
       throw new Error(`PDF generation failed: ${response.error.message}`);
     }
 
-    console.log('✅ PDF generated successfully:', response.data);
+    const result = response.data;
+    
+    if (!result?.pdfPath) {
+      throw new Error('PDF generation succeeded but no pdfPath returned');
+    }
+
+    console.log('✅ PDF generated successfully:', result);
+    
+    return {
+      pdfPath: result.pdfPath,
+      imagePaths: result.imagePaths || []
+    };
   } catch (error) {
     console.error('Failed to generate PDF:', error);
-    
-    // Update report status to failed
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-    
-    await supabase
-      .from('spreadsheet_reports')
-      .update({
-        processing_status: 'failed',
-        error_message: `PDF generation failed: ${error instanceof Error ? error.message : String(error)}`
-      })
-      .eq('id', reportId);
-    
     throw error;
   }
 }

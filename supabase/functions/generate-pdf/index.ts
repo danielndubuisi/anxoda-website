@@ -68,32 +68,15 @@ serve(async (req) => {
       `embedded_chart_${i}`
     ) || [];
     
-    // Update database with completed status
-    console.log('💾 Updating database...');
-    
-    const { error: updateError } = await supabase
-      .from('spreadsheet_reports')
-      .update({
-        processing_status: 'completed',
-        report_pdf_path: pdfPath,
-        image_paths: imagePaths,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', reportId);
-    
-    if (updateError) {
-      console.error('Database update error:', updateError);
-      throw new Error(`Failed to update database: ${updateError.message}`);
-    }
-    
     console.log('✅ PDF generation completed successfully');
     
     return new Response(
       JSON.stringify({ 
         success: true, 
         pdfPath,
+        imagePaths,
         message: 'PDF generated successfully'
-      }), 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
