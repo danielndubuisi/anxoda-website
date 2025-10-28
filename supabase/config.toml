@@ -42,3 +42,6 @@ verify_jwt = true
 
 [functions.delete-report]
 verify_jwt = true
+
+[functions.generate-pdf]
+verify_jwt = true
