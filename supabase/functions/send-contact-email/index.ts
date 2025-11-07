@@ -38,13 +38,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
-    // Store contact submission (user_id is optional for non-authenticated users)
+    // Store contact submission (anonymous allowed)
     const { error: dbError } = await supabase.from("contact_submissions").insert({
       name,
       email,
       company,
       message,
-      user_id: user_id || null,
       status: "new",
     });
 
