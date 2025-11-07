@@ -542,21 +542,28 @@ const Dashboard = () => {
                                     <CardTitle>Quick Actions</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
-                                    <Button className="w-full justify-start">
+                                    <Button 
+                                        className="w-full justify-start"
+                                        onClick={() => window.location.href = '/#contact'}
+                                    >
                                         <Calendar className="w-4 h-4 mr-2" />
                                         Schedule Consultation
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start">
+                                        className="w-full justify-start"
+                                        onClick={() => setActiveTab('analyzer')}
+                                    >
                                         <FileText className="w-4 h-4 mr-2" />
-                                        View Projects
+                                        View Reports
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start">
+                                        className="w-full justify-start"
+                                        onClick={() => window.location.href = 'mailto:info@anxoda.com'}
+                                    >
                                         <Mail className="w-4 h-4 mr-2" />
-                                        Contact Support
+                                        Customer Support
                                     </Button>
                                 </CardContent>
                             </Card>
