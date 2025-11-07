@@ -59,6 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
     const businessEmail = await resend.emails.send({
       from: "Anxoda Contact Form <onboarding@resend.dev>",
       to: ["info@anxoda.com"],
+      cc: ["anxoda.business@gmail.com"],
       subject: `New Contact Form Submission from ${name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
