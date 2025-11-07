@@ -29,8 +29,8 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
     const { name, email, company, message, user_id }: ContactEmailRequest & { user_id?: string } = await req.json();
 
-    if (!name || !email || !message || !user_id) {
-      throw new Error("Missing required fields: name, email, message, or user_id");
+    if (!name || !email || !message) {
+      throw new Error("Missing required fields: name, email, or message");
     }
 
     // Create Supabase client with service role key to store submission
@@ -38,13 +38,13 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
-    // Only allow storing contact info for the authenticated user
+    // Store contact submission (user_id is optional for non-authenticated users)
     const { error: dbError } = await supabase.from("contact_submissions").insert({
       name,
       email,
       company,
       message,
-      user_id,
+      user_id: user_id || null,
       status: "new",
     });
 
