@@ -27,6 +27,12 @@ const AIChatbot = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
+    // Use hardcoded URL with env variable as fallback for reliability
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://pjevyfyvrgvjgspxfikd.supabase.co';
+    const CHAT_URL = `${SUPABASE_URL}/functions/v1/chatbot`;
+    
+    console.log('[Chatbot] Initialized with URL:', CHAT_URL);
+
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -45,10 +51,18 @@ const AIChatbot = () => {
         }
     }, [shouldScrollToContact]);
 
-    const streamChat = async (userMessage: string) => {
-        const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chatbot`;
+    const streamChat = async (userMessage: string, isRetry: boolean = false) => {
+        console.log('[Chatbot] Sending message:', userMessage);
+        console.log('[Chatbot] Request URL:', CHAT_URL);
 
         try {
+            // Add timeout handling (30 seconds)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                console.error('[Chatbot] Request timeout after 30 seconds');
+                controller.abort();
+            }, 30000);
+
             const response = await fetch(CHAT_URL, {
                 method: "POST",
                 headers: {
@@ -58,9 +72,19 @@ const AIChatbot = () => {
                 body: JSON.stringify({
                     messages: [...messages, { role: "user", content: userMessage }],
                 }),
+                signal: controller.signal,
             });
 
+            clearTimeout(timeoutId);
+            console.log('[Chatbot] Response status:', response.status, response.statusText);
+
             if (!response.ok) {
+                console.error('[Chatbot] API Error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: CHAT_URL
+                });
+
                 const errorData = await response.json().catch(() => ({}));
                 
                 if (response.status === 429) {
@@ -76,6 +100,8 @@ const AIChatbot = () => {
 
             if (!response.body) throw new Error("No response body");
 
+            console.log('[Chatbot] Starting to read stream...');
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let textBuffer = "";
@@ -87,7 +113,10 @@ const AIChatbot = () => {
 
             while (!streamDone) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                if (done) {
+                    console.log('[Chatbot] Stream complete');
+                    break;
+                }
                 
                 textBuffer += decoder.decode(value, { stream: true });
 
@@ -102,6 +131,7 @@ const AIChatbot = () => {
 
                     const jsonStr = line.slice(6).trim();
                     if (jsonStr === "[DONE]") {
+                        console.log('[Chatbot] Received [DONE] signal');
                         streamDone = true;
                         break;
                     }
@@ -123,13 +153,21 @@ const AIChatbot = () => {
                                 return newMessages;
                             });
                         }
-                    } catch {
+                    } catch (e) {
+                        console.error("[Chatbot] Failed to parse SSE data:", e, "Data:", jsonStr);
                         // Partial JSON, put it back
                         textBuffer = line + "\n" + textBuffer;
                         break;
                     }
                 }
             }
+
+            // Process any remaining buffer
+            if (textBuffer.trim()) {
+                console.log('[Chatbot] Processing remaining buffer:', textBuffer);
+            }
+
+            console.log('[Chatbot] Final assistant message length:', assistantMessage.length);
 
             // Check if AI suggested contact form
             const lowerResponse = assistantMessage.toLowerCase();
@@ -152,12 +190,31 @@ const AIChatbot = () => {
 
             setIsTyping(false);
         } catch (error) {
-            console.error("Chat error:", error);
+            console.error("[Chatbot] Error streaming chat:", error);
+            
+            // Retry logic - only retry once
+            if (!isRetry && error instanceof Error && error.name !== 'AbortError') {
+                console.log('[Chatbot] Retrying request...');
+                toast({
+                    title: "Retrying...",
+                    description: "Connection issue detected, retrying request.",
+                });
+                await streamChat(userMessage, true);
+                return;
+            }
+
             setIsTyping(false);
             
+            // Show appropriate error message
+            const errorMessage = error instanceof Error && error.name === 'AbortError'
+                ? "Request timed out. Please try again."
+                : error instanceof Error 
+                    ? error.message 
+                    : "Failed to send message";
+
             toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to send message",
+                title: "Connection Error",
+                description: errorMessage,
                 variant: "destructive",
             });
 
