@@ -13,6 +13,8 @@ import {
     Mail,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import danielImage from "@/assets/daniel-ndubuisi.png";
+import ikennaImage from "@/assets/ikenna-nwankwo.png";
 
 const achievements = [
     {
@@ -53,7 +55,7 @@ const teamMembers = [
         name: "Daniel Ndubuisi",
         role: "CTO & Co-Founder",
         bio: "Expert in AI solutions and software development with a focus on business transformation.",
-        image: "https://media.licdn.com/dms/image/v2/D4D03AQF8ceYD-Fb3PA/profile-displayphoto-shrink_100_100/B4DZiIfN16HwAU-/0/1754636544561?e=1762992000&v=beta&t=tHCMbojz_xJlEkzVuOdbhv3TY-_l55YEYzz2UzZq6o4",
+        image: danielImage,
         linkedin: "https://www.linkedin.com/in/pharmadevdaniel",
         email: "ndubeansdaniel97@gmail.com",
     },
@@ -61,7 +63,7 @@ const teamMembers = [
         name: "Ikenna M.D. Nwankwo",
         role: "Co-Founder",
         bio: "Passionate about empowering small businesses through technology and data consulting.",
-        image: "https://media.licdn.com/dms/image/v2/D4E03AQEOaYHTMheaQw/profile-displayphoto-shrink_800_800/B4EZkKE5gOGwAg-/0/1756810681668?e=1762992000&v=beta&t=wKrJmrQQ-6CHYr1AWQhnckqueefzhhuaO2EhysvPl8o",
+        image: ikennaImage,
         linkedin: "https://www.linkedin.com/in/ikenna-m-d-nwankwo-3a2390258",
         email: "martin.nwankwo.169@gmail.com",
     },
