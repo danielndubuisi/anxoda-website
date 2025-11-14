@@ -4,29 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, X, Send, User, Bot } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
-    id: string;
+    role: "user" | "assistant";
     content: string;
-    isBot: boolean;
-    timestamp: Date;
 }
 
 const AIChatbot = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         {
-            id: "1",
+            role: "assistant",
             content:
                 "Hi! I'm Anxoda's AI assistant. I can help answer questions about our services, pricing, and how we can help transform your business. What would you like to know?",
-            isBot: true,
-            timestamp: new Date(),
         },
     ]);
     const [inputMessage, setInputMessage] = useState("");
     const [isTyping, setIsTyping] = useState(false);
+    const [shouldScrollToContact, setShouldScrollToContact] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+
+    // Use hardcoded URL with env variable as fallback for reliability
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://pjevyfyvrgvjgspxfikd.supabase.co';
+    const CHAT_URL = `${SUPABASE_URL}/functions/v1/chatbot`;
+    
+    console.log('[Chatbot] Initialized with URL:', CHAT_URL);
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -34,179 +39,206 @@ const AIChatbot = () => {
         }
     }, [messages, isTyping]);
 
-    const businessFAQs = {
-        services: {
-            keywords: ["services", "what do you do", "offerings", "solutions"],
-            response:
-                "We provide comprehensive digital transformation solutions including:\n\n• Custom Software Development\n• AI & Machine Learning Solutions\n• Data Analytics & Consultancy\n• Business Process Automation\n• Cloud Migration & DevOps.\n\nWould you like to discuss your needs with our team?",
-        },
-        pricing: {
-            keywords: ["pricing", "cost", "price", "how much", "rates", "fees"],
-            response:
-                "Our pricing is tailored to each business's specific needs. We offer:\n\n• Free initial consultation\n• Custom project quotes\n• Flexible payment plans\n• Subscription-based services for ongoing support.\n\nWould you like to get a custom quote or speak with our team?",
-        },
-        ai: {
-            keywords: [
-                "ai",
-                "artificial intelligence",
-                "machine learning",
-                "automation",
-            ],
-            response:
-                "Our AI solutions help businesses:\n\n• Automate repetitive tasks\n• Predict customer behavior\n• Optimize operations\n• Improve decision-making\n• Enhance customer experiences.\n\nWould you like to explore how AI can help your business?",
-        },
-        consultation: {
-            keywords: ["consultation", "meeting", "call", "talk", "discuss"],
-            response:
-                "I'd love to connect you with our team! We offer:\n\n• Free 30-minute consultation calls\n• Business needs assessment\n• Solution recommendations\n• Custom project proposals\n\nWould you like to schedule a free consultation call?",
-        },
-        support: {
-            keywords: ["support", "help", "maintenance", "training"],
-            response:
-                "We provide comprehensive support including:\n\n• 24/7 technical support\n• Staff training programs\n• Regular system updates\n• Performance optimization\n• Strategic guidance.\n\nWould you like to speak to our support team or learn more?",
-        },
-        process: {
-            keywords: ["process", "how it works", "methodology", "timeline"],
-            response:
-                "Our proven 6-step process:\n\n1. Consultation & Discovery\n2. Analysis & Strategy\n3. Solution Design\n4. Development & Integration\n5. Deployment & Launch\n6. Support & Optimization\n\nWould you like to discuss how this process applies to your business?",
-        },
-    };
-
-    // Track if last message was a CTA
-    const lastWasCTARef = useRef(false);
-    // Track if user should be redirected to form
-    const [showForm, setShowForm] = useState(false);
-
-    const affirmativeWords = [
-        "yes",
-        "yeah",
-        "yep",
-        "sure",
-        "of course",
-        "absolutely",
-        "please",
-        "ok",
-        "okay",
-        "yup",
-        "certainly",
-        "why not",
-        "alright",
-        "affirmative",
-        "let's",
-        "lets",
-        "i do",
-        "i would",
-        "i want",
-        "i'm interested",
-        "interested",
-        "sounds good",
-        "go ahead",
-        "schedule",
-        "set up",
-        "connect",
-        "speak",
-        "discuss",
-        "get in touch",
-        "contact",
-    ];
-    const negativeWords = [
-        "no",
-        "nope",
-        "not now",
-        "maybe later",
-        "don't",
-        "do not",
-        "nah",
-        "not interested",
-        "not really",
-        "cancel",
-    ];
-
-    const getAIResponse = (userMessage: string): string => {
-        const lowerMessage = userMessage.toLowerCase();
-
-        // If last message was a CTA, check for yes/no/affirmative
-        if (lastWasCTARef.current) {
-            if (affirmativeWords.some((word) => lowerMessage.includes(word))) {
-                setShowForm(true);
-                lastWasCTARef.current = false;
-                return "Great! Please fill out our quick form so we can assist you further: [Open Contact Form]";
+    // Handle scrolling to contact form
+    useEffect(() => {
+        if (shouldScrollToContact) {
+            const contactSection = document.getElementById("contact");
+            if (contactSection) {
+                contactSection.scrollIntoView({ behavior: "smooth" });
+                setIsOpen(false);
             }
-            if (negativeWords.some((word) => lowerMessage.includes(word))) {
-                lastWasCTARef.current = false;
-                return "Thank you for your response! If you need any other assistance, feel free to ask another question.";
+            setShouldScrollToContact(false);
+        }
+    }, [shouldScrollToContact]);
+
+    const streamChat = async (userMessage: string, isRetry: boolean = false) => {
+        console.log('[Chatbot] Sending message:', userMessage);
+        console.log('[Chatbot] Request URL:', CHAT_URL);
+
+        try {
+            // Add timeout handling (30 seconds)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                console.error('[Chatbot] Request timeout after 30 seconds');
+                controller.abort();
+            }, 30000);
+
+            const response = await fetch(CHAT_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({
+                    messages: [...messages, { role: "user", content: userMessage }],
+                }),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            console.log('[Chatbot] Response status:', response.status, response.statusText);
+
+            if (!response.ok) {
+                console.error('[Chatbot] API Error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: CHAT_URL
+                });
+
+                const errorData = await response.json().catch(() => ({}));
+                
+                if (response.status === 429) {
+                    throw new Error("Too many requests. Please wait a moment and try again.");
+                }
+                
+                if (response.status === 402) {
+                    throw new Error("Service temporarily unavailable. Please try again later.");
+                }
+                
+                throw new Error(errorData.message || "Failed to get response from AI");
             }
-            // If not clear, ask for clarification
-            return "Just to confirm, would you like to proceed? Please reply 'yes' or 'no'.";
-        }
 
-        if (
-            lowerMessage.includes("hello") ||
-            lowerMessage.includes("hi") ||
-            lowerMessage.includes("hey")
-        ) {
-            lastWasCTARef.current = false;
-            return "Hello! I'm here to help you learn about Anxoda's services and how we can transform your business. What specific questions do you have?";
-        }
+            if (!response.body) throw new Error("No response body");
 
-        if (
-            lowerMessage.includes("contact") ||
-            lowerMessage.includes("phone") ||
-            lowerMessage.includes("email")
-        ) {
-            lastWasCTARef.current = true;
-            return "You can reach us at:\n\n📞 WhatsApp: +2349030673128\n📧 Email: info@anxoda.com\n📍 Location: Lagos, Nigeria\n🕒 Hours: 9:00 AM - 5:00 PM (Mon-Fri)\n\nWould you like to schedule a meeting?";
-        }
+            console.log('[Chatbot] Starting to read stream...');
 
-        for (const [category, faq] of Object.entries(businessFAQs)) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let textBuffer = "";
+            let streamDone = false;
+            let assistantMessage = "";
+
+            // Add empty assistant message that we'll update
+            setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+            while (!streamDone) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    console.log('[Chatbot] Stream complete');
+                    break;
+                }
+                
+                textBuffer += decoder.decode(value, { stream: true });
+
+                let newlineIndex: number;
+                while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+                    let line = textBuffer.slice(0, newlineIndex);
+                    textBuffer = textBuffer.slice(newlineIndex + 1);
+
+                    if (line.endsWith("\r")) line = line.slice(0, -1);
+                    if (line.startsWith(":") || line.trim() === "") continue;
+                    if (!line.startsWith("data: ")) continue;
+
+                    const jsonStr = line.slice(6).trim();
+                    if (jsonStr === "[DONE]") {
+                        console.log('[Chatbot] Received [DONE] signal');
+                        streamDone = true;
+                        break;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(jsonStr);
+                        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+                        
+                        if (content) {
+                            assistantMessage += content;
+                            
+                            // Update the last assistant message
+                            setMessages((prev) => {
+                                const newMessages = [...prev];
+                                newMessages[newMessages.length - 1] = {
+                                    role: "assistant",
+                                    content: assistantMessage,
+                                };
+                                return newMessages;
+                            });
+                        }
+                    } catch (e) {
+                        console.error("[Chatbot] Failed to parse SSE data:", e, "Data:", jsonStr);
+                        // Partial JSON, put it back
+                        textBuffer = line + "\n" + textBuffer;
+                        break;
+                    }
+                }
+            }
+
+            // Process any remaining buffer
+            if (textBuffer.trim()) {
+                console.log('[Chatbot] Processing remaining buffer:', textBuffer);
+            }
+
+            console.log('[Chatbot] Final assistant message length:', assistantMessage.length);
+
+            // Check if AI suggested contact form
+            const lowerResponse = assistantMessage.toLowerCase();
             if (
-                faq.keywords.some((keyword) => lowerMessage.includes(keyword))
+                lowerResponse.includes("contact form") ||
+                lowerResponse.includes("direct you to") ||
+                (lowerResponse.includes("great") && lowerResponse.includes("team"))
             ) {
-                lastWasCTARef.current = true;
-                return faq.response;
+                // Add a follow-up message with clickable link
+                setTimeout(() => {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            role: "assistant",
+                            content: "[CONTACT_FORM_LINK]",
+                        },
+                    ]);
+                }, 500);
             }
-        }
 
-        lastWasCTARef.current = false;
-        return "That's a great question! While I can help with basic information about our services, pricing, and processes, I'd recommend scheduling a free consultation with our team for more detailed discussion. Would you like to set that up?";
+            setIsTyping(false);
+        } catch (error) {
+            console.error("[Chatbot] Error streaming chat:", error);
+            
+            // Retry logic - only retry once
+            if (!isRetry && error instanceof Error && error.name !== 'AbortError') {
+                console.log('[Chatbot] Retrying request...');
+                toast({
+                    title: "Retrying...",
+                    description: "Connection issue detected, retrying request.",
+                });
+                await streamChat(userMessage, true);
+                return;
+            }
+
+            setIsTyping(false);
+            
+            // Show appropriate error message
+            const errorMessage = error instanceof Error && error.name === 'AbortError'
+                ? "Request timed out. Please try again."
+                : error instanceof Error 
+                    ? error.message 
+                    : "Failed to send message";
+
+            toast({
+                title: "Connection Error",
+                description: errorMessage,
+                variant: "destructive",
+            });
+
+            // Add fallback message
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content:
+                        "I apologize, but I'm having trouble responding right now. Please try again or contact us directly at info@anxoda.com or WhatsApp +2349030673128.",
+                },
+            ]);
+        }
     };
 
     const handleSendMessage = async () => {
         if (!inputMessage.trim()) return;
 
-        // If user is being redirected to form, scroll to form section on contact page
-        if (showForm) {
-            setShowForm(false);
-            // Navigate to /contact#contact-form in the same tab
-            window.location.href = "/contact#contact-form";
-            setInputMessage("");
-            return;
-        }
-
-        const userMessage: Message = {
-            id: Date.now().toString(),
-            content: inputMessage,
-            isBot: false,
-            timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, userMessage]);
+        const userMessage = inputMessage.trim();
+        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
         setInputMessage("");
         setIsTyping(true);
 
-        setTimeout(() => {
-            const aiText = getAIResponse(inputMessage);
-            // If bot message contains [Open Contact Form], make it a clickable link
-            const aiResponse: Message = {
-                id: (Date.now() + 1).toString(),
-                content: aiText,
-                isBot: true,
-                timestamp: new Date(),
-            };
-
-            setMessages((prev) => [...prev, aiResponse]);
-            setIsTyping(false);
-        }, 1000);
+        await streamChat(userMessage);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -216,17 +248,19 @@ const AIChatbot = () => {
         }
     };
 
+    const handleContactFormClick = () => {
+        setShouldScrollToContact(true);
+    };
+
     return (
         <>
             {/* Chat Button */}
             {!isOpen && (
                 <div className="fixed bottom-6 right-6 flex flex-col items-end z-50">
-                    {/* Always visible thinking box above icon, with pulse, stem to the right */}
                     <div className="relative mb-3 animate-pulse">
                         <div className="bg-background/95 backdrop-blur-sm border border-border shadow-lg rounded-lg px-4 py-2 text-sm text-foreground font-medium min-w-[140px] text-left">
                             Ask me anything
                         </div>
-                        {/* Speech bubble stem at bottom right */}
                         <span className="absolute -bottom-2 right-4 w-0 h-0 border-t-[10px] border-t-background border-x-[8px] border-x-transparent border-b-0"></span>
                         <span
                             className="absolute -bottom-2 right-4 w-0 h-0 border-t-[10px] border-t-border border-x-[8px] border-x-transparent border-b-0 z-[-1]"
@@ -265,50 +299,35 @@ const AIChatbot = () => {
                         </CardHeader>
 
                         <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-                            {/* Messages */}
                             <ScrollArea className="flex-1 p-4 overflow-y-auto min-h-0">
                                 <div className="space-y-4">
-                                    {messages.map((message) => (
+                                    {messages.map((message, index) => (
                                         <div
-                                            key={message.id}
+                                            key={index}
                                             className={`flex ${
-                                                message.isBot
+                                                message.role === "assistant"
                                                     ? "justify-start"
                                                     : "justify-end"
                                             }`}>
                                             <div
                                                 className={`max-w-[85%] rounded-lg p-3 ${
-                                                    message.isBot
+                                                    message.role === "assistant"
                                                         ? "bg-secondary text-secondary-foreground"
                                                         : "bg-primary text-primary-foreground"
                                                 }`}>
                                                 <div className="flex items-start space-x-2">
-                                                    {message.isBot ? (
+                                                    {message.role === "assistant" ? (
                                                         <Bot className="w-4 h-4 mt-0.5 flex-shrink-0" />
                                                     ) : (
                                                         <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
                                                     )}
                                                     <div className="text-sm whitespace-pre-line break-words">
-                                                        {message.content.includes(
-                                                            "[Open Contact Form]"
-                                                        ) ? (
-                                                            <>
-                                                                {message.content.replace(
-                                                                    "[Open Contact Form]",
-                                                                    ""
-                                                                )}
-                                                                <a
-                                                                    href="/#contact-form"
-                                                                    className="text-primary underline ml-1"
-                                                                    onClick={() =>
-                                                                        setIsOpen(
-                                                                            false
-                                                                        )
-                                                                    }>
-                                                                    Fill the
-                                                                    contact form
-                                                                </a>
-                                                            </>
+                                                        {message.content === "[CONTACT_FORM_LINK]" ? (
+                                                            <button
+                                                                onClick={handleContactFormClick}
+                                                                className="text-primary underline hover:text-primary/80 transition-colors font-medium">
+                                                                👉 Fill out our contact form
+                                                            </button>
                                                         ) : (
                                                             message.content
                                                         )}
@@ -326,49 +345,42 @@ const AIChatbot = () => {
                                                         <div
                                                             className="w-2 h-2 bg-primary rounded-full animate-bounce"
                                                             style={{
-                                                                animationDelay:
-                                                                    "0ms",
+                                                                animationDelay: "0ms",
                                                             }}></div>
                                                         <div
                                                             className="w-2 h-2 bg-primary rounded-full animate-bounce"
                                                             style={{
-                                                                animationDelay:
-                                                                    "150ms",
+                                                                animationDelay: "150ms",
                                                             }}></div>
                                                         <div
                                                             className="w-2 h-2 bg-primary rounded-full animate-bounce"
                                                             style={{
-                                                                animationDelay:
-                                                                    "300ms",
+                                                                animationDelay: "300ms",
                                                             }}></div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
-                                    {/* This ensures auto-scroll to latest message */}
                                     <div ref={messagesEndRef} />
                                 </div>
                             </ScrollArea>
 
-                            {/* Input */}
                             <div className="p-4 border-t border-border flex-shrink-0">
                                 <div className="flex space-x-2">
                                     <Input
                                         value={inputMessage}
-                                        onChange={(e) =>
-                                            setInputMessage(e.target.value)
-                                        }
+                                        onChange={(e) => setInputMessage(e.target.value)}
                                         onKeyPress={handleKeyPress}
-                                        placeholder="Ask me about our services..."
+                                        placeholder="Type your message..."
                                         className="flex-1"
+                                        disabled={isTyping}
                                     />
                                     <Button
                                         onClick={handleSendMessage}
                                         size="icon"
-                                        disabled={
-                                            !inputMessage.trim() || isTyping
-                                        }>
+                                        disabled={isTyping || !inputMessage.trim()}
+                                        className="flex-shrink-0">
                                         <Send className="w-4 h-4" />
                                     </Button>
                                 </div>

@@ -29,8 +29,8 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
     const { name, email, company, message, user_id }: ContactEmailRequest & { user_id?: string } = await req.json();
 
-    if (!name || !email || !message || !user_id) {
-      throw new Error("Missing required fields: name, email, message, or user_id");
+    if (!name || !email || !message) {
+      throw new Error("Missing required fields: name, email, or message");
     }
 
     // Create Supabase client with service role key to store submission
@@ -38,13 +38,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
-    // Only allow storing contact info for the authenticated user
+    // Store contact submission (anonymous allowed)
     const { error: dbError } = await supabase.from("contact_submissions").insert({
       name,
       email,
       company,
       message,
-      user_id,
       status: "new",
     });
 
@@ -55,10 +54,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("send-contact-email: stored submission for user", user_id);
 
-    // Notify business
+    // Notify business (temporary workaround - using verified email)
     const businessEmail = await resend.emails.send({
       from: "Anxoda Contact Form <onboarding@resend.dev>",
-      to: ["info@anxoda.com"],
+      to: ["anxoda.business@gmail.com"],
       subject: `New Contact Form Submission from ${name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

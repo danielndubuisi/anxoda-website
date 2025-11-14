@@ -625,6 +625,8 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
         image_paths: pdfResult.imagePaths,
         text_summary: structuredSummary,
         chart_data: chartData,
+        row_count: dataRows.length,
+        column_count: headers.length,
         updated_at: new Date().toISOString()
       }).eq('id', reportId);
       
@@ -638,6 +640,8 @@ DELIVERABLE: Professional C-suite ${dataAnalysis.domain} analysis with concrete 
         processing_status: 'completed',
         text_summary: structuredSummary,
         chart_data: chartData,
+        row_count: dataRows.length,
+        column_count: headers.length,
         error_message: `PDF generation failed: ${pdfError instanceof Error ? pdfError.message : String(pdfError)}. AI insights are available.`,
         updated_at: new Date().toISOString()
       }).eq('id', reportId);
