@@ -12,12 +12,12 @@ At **Anxoda**, we’re on a mission to help **small & medium-sized businesses (S
 
 ## **📌 Project Info**
 
-- **Lovable template**
+- **Developer Wiki Documentation** [www.anxoda.com](https://www.anxoda.com)  
 - **Domain:** [www.anxoda.com](https://www.anxoda.com)  
 - **Tech Stack:**
   - ⚡ **Frontend:** React (TypeScript, Vite, shadcn-ui, TailwindCSS)  
   - 🧠 **Future AI Modules:** OpenAI GPT-4.5, LangChain  
-  - ☁️ **Planned Backend:** Node.js / Python (FastAPI) + PostgreSQL  
+  - ☁️ **Backend:** Node.js / Python (FastAPI) + PostgreSQL  
 
 ---
 
