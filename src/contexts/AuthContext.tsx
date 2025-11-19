@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setLoading(false);
 
             if (event === "SIGNED_IN") {
-                window.location.href = "/dashboard";
+                window.location.href = "/#/dashboard";
             } else if (event === "SIGNED_OUT") {
                 window.location.href = "/";
             }
