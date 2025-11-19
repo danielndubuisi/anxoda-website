@@ -43,6 +43,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
+
+            if (event === "SIGNED_IN") {
+                window.location.href = "/dashboard";
+            } else if (event === "SIGNED_OUT") {
+                window.location.href = "/";
+            }
         });
 
         // THEN check for existing session
