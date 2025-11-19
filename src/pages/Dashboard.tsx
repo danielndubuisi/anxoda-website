@@ -15,6 +15,7 @@ import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
 import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
 import { ReportHistory } from "@/components/ReportHistory";
+import { ToolsGrid } from "@/components/ToolsGrid";
 import {
     User,
     Building2,
@@ -56,7 +57,7 @@ const Dashboard = () => {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState("analyzer");
+    const [activeTab, setActiveTab] = useState("tools");
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [selectedReportId, setSelectedReportId] = useState<string | null>(
         null
@@ -70,6 +71,7 @@ const Dashboard = () => {
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [currentReport, setCurrentReport] = useState<any>(null);
     const [polling, setPolling] = useState(false);
+    const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -305,9 +307,9 @@ const Dashboard = () => {
                     <div className="hidden sm:block">
                         <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
-                            <TabsTrigger value="analyzer">
+                            <TabsTrigger value="tools">
                                 <FileSpreadsheet className="w-4 h-4 mr-2" />
-                                Spreadsheet Analyzer
+                                Tools
                             </TabsTrigger>
                             <TabsTrigger value="profile">Profile</TabsTrigger>
                             <TabsTrigger value="subscription">
@@ -323,8 +325,8 @@ const Dashboard = () => {
                                 switch (activeTab) {
                                     case "overview":
                                         return "Overview";
-                                    case "analyzer":
-                                        return "Spreadsheet Analyzer";
+                                    case "tools":
+                                        return "Tools";
                                     case "profile":
                                         return "Profile";
                                     case "subscription":
@@ -373,15 +375,15 @@ const Dashboard = () => {
                                     <li>
                                         <button
                                             className={`w-full text-left px-6 py-4 ${
-                                                activeTab === "analyzer"
+                                                activeTab === "tools"
                                                     ? "bg-primary/10 font-bold"
                                                     : ""
                                             }`}
                                             onClick={() => {
-                                                setActiveTab("analyzer");
+                                                setActiveTab("tools");
                                                 setMobileMenuOpen(false);
                                             }}>
-                                            Spreadsheet Analyzer
+                                            Tools
                                         </button>
                                     </li>
                                     <li>
@@ -552,10 +554,10 @@ const Dashboard = () => {
                                     <Button
                                         variant="outline"
                                         className="w-full justify-start"
-                                        onClick={() => setActiveTab('analyzer')}
+                                        onClick={() => setActiveTab('tools')}
                                     >
                                         <FileText className="w-4 h-4 mr-2" />
-                                        View Reports
+                                        View Tools
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -570,14 +572,26 @@ const Dashboard = () => {
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="analyzer" className="space-y-6">
+                    <TabsContent value="tools" className="space-y-6">
                         {selectedReportId ? (
                             <ReportViewer 
                                 reportId={selectedReportId}
-                                onBack={() => setSelectedReportId(null)}
+                                onBack={() => {
+                                    setSelectedReportId(null);
+                                    setSelectedTool(null);
+                                }}
                             />
-                        ) : (
-                            <>
+                        ) : selectedTool === "spreadsheet-analyzer" ? (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold">Spreadsheet Analyzer</h2>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setSelectedTool(null)}
+                                    >
+                                        ← Back to Tools
+                                    </Button>
+                                </div>
                                 <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
                                 
                                 {/* Report History Section */}
@@ -587,7 +601,45 @@ const Dashboard = () => {
                                     }}
                                     refreshTrigger={refreshTrigger}
                                 />
-                            </>
+                            </div>
+                        ) : selectedTool ? (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold capitalize">{selectedTool.replace(/-/g, ' ')}</h2>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setSelectedTool(null)}
+                                    >
+                                        ← Back to Tools
+                                    </Button>
+                                </div>
+                                <Card className="p-12 text-center">
+                                    <div className="space-y-4">
+                                        <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                                            <Sparkles className="w-10 h-10 text-primary" />
+                                        </div>
+                                        <h3 className="text-xl font-semibold">Coming Soon!</h3>
+                                        <p className="text-muted-foreground max-w-md mx-auto">
+                                            This powerful tool is currently under development. We're working hard to bring you advanced {selectedTool.replace(/-/g, ' ')} capabilities.
+                                        </p>
+                                        <Button onClick={() => setSelectedTool(null)} className="mt-4">
+                                            Explore Other Tools
+                                        </Button>
+                                    </div>
+                                </Card>
+                            </div>
+                        ) : (
+                            <ToolsGrid 
+                                onToolSelect={(toolId) => {
+                                    setSelectedTool(toolId);
+                                    if (toolId !== "spreadsheet-analyzer") {
+                                        toast({
+                                            title: "Coming Soon!",
+                                            description: `The ${toolId.replace(/-/g, ' ')} tool is currently under development.`,
+                                        });
+                                    }
+                                }}
+                            />
                         )}
                     </TabsContent>
 
