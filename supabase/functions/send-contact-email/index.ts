@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "npm:resend@4.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -81,14 +81,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("send-contact-email: business email sent", businessEmail);
 
-    // Confirm to customer
+    // Confirm to customer (TEMPORARY: sending to business email during testing)
     const customerEmail = await resend.emails.send({
       from: "Anxoda <onboarding@resend.dev>",
-      to: [email],
-      subject: "Thank you for contacting Anxoda - We'll be in touch soon!",
+      to: ["anxoda.business@gmail.com"],
+      subject: `[Customer Copy] Thank you for contacting Anxoda - We'll be in touch soon!`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <div style="background: #fef3c7; padding: 15px; border-radius: 8px 8px 0 0; border-left: 4px solid #f59e0b;">
+            <p style="margin: 0; color: #92400e; font-weight: bold;">⚠️ TESTING MODE: This email was originally intended for ${email}</p>
+          </div>
+          <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 30px; text-align: center; border-radius: 0;">
             <h1 style="color: white; margin: 0; font-size: 28px;">Thank You, ${name}!</h1>
           </div>
           <div style="padding: 30px; background: white; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -103,6 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1e40af;">Your Message Summary</h3>
+              <p><strong>Original Sender:</strong> ${email}</p>
               <p><strong>Company:</strong> ${company || "Not provided"}</p>
               <p><strong>Message:</strong> ${message}</p>
             </div>
