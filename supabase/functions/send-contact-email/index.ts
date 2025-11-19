@@ -49,7 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (dbError) {
       console.error("send-contact-email: db insert error", dbError);
-      throw new Error("Failed to store contact submission");
+      throw new Error("Failed to store contact info submission");
     }
 
     console.log("send-contact-email: stored submission for user", user_id);
