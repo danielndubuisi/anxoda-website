@@ -153,7 +153,8 @@ const Dashboard = () => {
                 description: "Your profile information has been saved.",
             });
 
-            await fetchProfile();
+            // Clear the form after successful update
+            setProfile(null);
         } catch (error) {
             toast({
                 title: "Update failed",
