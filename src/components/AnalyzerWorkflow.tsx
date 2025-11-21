@@ -15,16 +15,18 @@ import {
   Clock, 
   ArrowRight,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 
 interface AnalyzerWorkflowProps {
   onReportGenerated?: () => void;
+  onViewReports?: () => void;
 }
 
 type WorkflowStep = 'upload' | 'question' | 'processing' | 'results';
 
-export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGenerated }) => {
+export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGenerated, onViewReports }) => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
@@ -248,7 +250,31 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
       <Card>
         <CardContent className="p-6">
           {currentStep === 'upload' && (
-            <DataConnectionSelector onConnectionComplete={handleConnectionComplete} />
+            <div className="space-y-4">
+              <DataConnectionSelector onConnectionComplete={handleConnectionComplete} />
+              
+              {/* View Previous Reports Button */}
+              {onViewReports && (
+                <div className="pt-4 border-t">
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">Already have reports?</h4>
+                      <p className="text-xs text-muted-foreground">
+                        View and compare your previous analysis
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={onViewReports}
+                      className="gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      View Reports
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {currentStep === 'question' && uploadedFile && (

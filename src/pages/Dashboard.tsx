@@ -29,6 +29,7 @@ import {
     FileText,
     Mail,
     FileSpreadsheet,
+    ArrowRight,
 } from "lucide-react";
 
 interface Profile {
@@ -375,11 +376,15 @@ const Dashboard = () => {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     {/* Desktop Tab List */}
                     <div className="hidden sm:block">
-                        <TabsList className="grid w-full grid-cols-5">
+                        <TabsList className="grid w-full grid-cols-6">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
                             <TabsTrigger value="tools">
                                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                                 Tools
+                            </TabsTrigger>
+                            <TabsTrigger value="reports">
+                                <FileText className="w-4 h-4 mr-2" />
+                                Reports
                             </TabsTrigger>
                             <TabsTrigger value="profile">Profile</TabsTrigger>
                             <TabsTrigger value="subscription">
@@ -397,6 +402,8 @@ const Dashboard = () => {
                                         return "Overview";
                                     case "tools":
                                         return "Tools";
+                                    case "reports":
+                                        return "Reports";
                                     case "profile":
                                         return "Profile";
                                     case "subscription":
@@ -454,6 +461,20 @@ const Dashboard = () => {
                                                 setMobileMenuOpen(false);
                                             }}>
                                             Tools
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button
+                                            className={`w-full text-left px-6 py-4 ${
+                                                activeTab === "reports"
+                                                    ? "bg-primary/10 font-bold"
+                                                    : ""
+                                            }`}
+                                            onClick={() => {
+                                                setActiveTab("reports");
+                                                setMobileMenuOpen(false);
+                                            }}>
+                                            Reports
                                         </button>
                                     </li>
                                     <li>
@@ -540,7 +561,10 @@ const Dashboard = () => {
                                 </CardContent>
                             </Card>
 
-                            <Card>
+                            <Card 
+                                className="cursor-pointer hover:shadow-lg transition-shadow"
+                                onClick={() => setActiveTab("reports")}
+                            >
                                 <CardContent className="p-6">
                                     <div className="flex items-center space-x-2">
                                         <FileText className="w-8 h-8 text-primary" />
@@ -550,6 +574,9 @@ const Dashboard = () => {
                                             </p>
                                             <p className="text-2xl font-bold">
                                                 {reportCount}
+                                            </p>
+                                            <p className="text-xs text-primary flex items-center gap-1">
+                                                View all <ArrowRight className="w-3 h-3" />
                                             </p>
                                         </div>
                                     </div>
@@ -638,8 +665,16 @@ const Dashboard = () => {
                                         className="w-full justify-start"
                                         onClick={() => setActiveTab('tools')}
                                     >
-                                        <FileText className="w-4 h-4 mr-2" />
+                                        <FileSpreadsheet className="w-4 h-4 mr-2" />
                                         View Tools
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start"
+                                        onClick={() => setActiveTab('reports')}
+                                    >
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        View All Reports
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -652,6 +687,28 @@ const Dashboard = () => {
                                 </CardContent>
                             </Card>
                         </div>
+                    </TabsContent>
+
+                    <TabsContent value="reports" className="space-y-6">
+                        {selectedReportId ? (
+                            <ReportViewer 
+                                reportId={selectedReportId}
+                                onBack={() => setSelectedReportId(null)}
+                            />
+                        ) : (
+                            <div className="space-y-6">
+                                <div>
+                                    <h2 className="text-2xl font-bold mb-2">Reports & Analysis History</h2>
+                                    <p className="text-muted-foreground">
+                                        View, compare, and manage all your generated reports
+                                    </p>
+                                </div>
+                                <ReportHistory 
+                                    onViewReport={(reportId) => setSelectedReportId(reportId)}
+                                    refreshTrigger={refreshTrigger}
+                                />
+                            </div>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="tools" className="space-y-6">
@@ -674,14 +731,9 @@ const Dashboard = () => {
                                         ← Back to Tools
                                     </Button>
                                 </div>
-                                <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
-                                
-                                {/* Report History Section */}
-                                <ReportHistory 
-                                    onViewReport={(reportId) => {
-                                        setSelectedReportId(reportId);
-                                    }}
-                                    refreshTrigger={refreshTrigger}
+                                <AnalyzerWorkflow 
+                                    onReportGenerated={() => setRefreshTrigger(prev => prev + 1)}
+                                    onViewReports={() => setActiveTab("reports")}
                                 />
                             </div>
                         ) : selectedTool ? (
