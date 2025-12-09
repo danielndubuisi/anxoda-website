@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SpreadsheetUploader } from '@/components/SpreadsheetUploader';
+import { LiveSheetConnector } from '@/components/LiveSheetConnector';
 import { 
   Upload, 
   Link2, 
@@ -43,11 +44,11 @@ export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
     {
       id: 'live_sheet' as ConnectionMethod,
       title: 'Connect Live Sheet',
-      description: 'Link Google Sheets or Excel Online for auto-updated analysis',
+      description: 'Link Google Sheets or Excel Online for scheduled auto-analysis',
       icon: Link2,
-      available: false,
-      badge: 'Coming Soon',
-      color: 'bg-muted text-muted-foreground border-muted'
+      available: true,
+      badge: 'New',
+      color: 'bg-green-500/10 text-green-600 border-green-500/20'
     },
     {
       id: 'database' as ConnectionMethod,
@@ -79,7 +80,14 @@ export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
     setSelectedMethod(null);
   };
 
-  // If a method is selected and it's upload, show the uploader
+  const handleLiveSheetConnected = () => {
+    onConnectionComplete({
+      type: 'live_sheet',
+      connectionId: 'live-sheet-connected'
+    });
+  };
+
+  // If a method is selected, show the appropriate component
   if (selectedMethod === 'upload') {
     return (
       <div className="space-y-4">
@@ -93,6 +101,23 @@ export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
           Back to Connection Options
         </Button>
         <SpreadsheetUploader onUploadSuccess={handleFileUploaded} />
+      </div>
+    );
+  }
+
+  if (selectedMethod === 'live_sheet') {
+    return (
+      <div className="space-y-4">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleBack}
+          className="mb-2"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Connection Options
+        </Button>
+        <LiveSheetConnector onConnectionComplete={handleLiveSheetConnected} />
       </div>
     );
   }
