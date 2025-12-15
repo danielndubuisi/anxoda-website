@@ -1,5 +1,7 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
+import * as XLSX from 'https://deno.land/x/sheetjs@v0.18.3/xlsx.mjs';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +28,6 @@ serve(async (req: Request): Promise<Response> => {
     let connections;
 
     if (runScheduled) {
-      // Get all connections due for processing
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("live_sheet_connections")
@@ -37,7 +38,6 @@ serve(async (req: Request): Promise<Response> => {
       if (error) throw error;
       connections = data;
     } else if (connectionId) {
-      // Get specific connection
       const { data, error } = await supabase
         .from("live_sheet_connections")
         .select("*")
@@ -97,38 +97,68 @@ serve(async (req: Request): Promise<Response> => {
 
         if (reportError) throw reportError;
 
-        // Get signed URL for processing
-        const { data: signedUrlData } = await supabase.storage
-          .from("spreadsheets")
-          .createSignedUrl(filePath, 3600);
+        // Process the spreadsheet data inline (same as process-spreadsheet)
+        console.log(`Starting inline analysis for report ${report.id}`);
+        
+        // Parse spreadsheet data using XLSX
+        const workbook = XLSX.read(sheetData, { type: 'string' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
 
-        // Call the analyze endpoint (Python service)
-        const pythonServiceUrl = Deno.env.get("PYTHON_EDA_SERVICE_URL");
-        if (pythonServiceUrl) {
-          const analyzeResponse = await fetch(`${pythonServiceUrl}/analyze`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("PYTHON_EDA_SERVICE_TOKEN") || ""}`,
-            },
-            body: JSON.stringify({
-              report_id: report.id,
-              user_id: connection.user_id,
-              signed_url: signedUrlData?.signedUrl,
-              useLovableAI: true,
-            }),
-          });
-
-          if (!analyzeResponse.ok) {
-            console.error("Analysis service error:", await analyzeResponse.text());
-          }
-        } else {
-          // Mark as completed without Python analysis
-          await supabase
-            .from("spreadsheet_reports")
-            .update({ processing_status: "completed" })
-            .eq("id", report.id);
+        if (!jsonData || jsonData.length === 0) {
+          throw new Error('No data found in spreadsheet');
         }
+
+        // Normalize headers & rows
+        const headers = (jsonData[0] as any[]).map((h, i) => (h ? String(h).trim() : `Column ${i+1}`));
+        const rawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+        const dataRows = rawRows.map(row => {
+          const obj: Record<string, any> = {};
+          for (let i = 0; i < headers.length; i++) {
+            obj[headers[i]] = row[i] !== undefined ? row[i] : null;
+          }
+          return obj;
+        });
+
+        console.log(`Parsed ${dataRows.length} rows with ${headers.length} columns`);
+
+        // Analyze dataset
+        const dataAnalysis = analyzeDataset(headers, rawRows);
+        const chartData = generateIntelligentCharts(headers, rawRows, dataAnalysis);
+
+        console.log(`Analysis complete: domain=${dataAnalysis.domain}, confidence=${dataAnalysis.domainConfidence}%`);
+
+        // Generate AI insights
+        const { structuredSummary, aiError } = await generateAIInsights(
+          dataAnalysis,
+          headers,
+          dataRows,
+          rawRows
+        );
+
+        // Update report with analysis results
+        await supabase
+          .from("spreadsheet_reports")
+          .update({
+            processing_status: "completed",
+            row_count: dataRows.length,
+            column_count: headers.length,
+            chart_data: chartData,
+            text_summary: structuredSummary,
+            kpis: {
+              domain: dataAnalysis.domain,
+              domainConfidence: dataAnalysis.domainConfidence,
+              numericColumns: dataAnalysis.numeric.length,
+              categoricalColumns: dataAnalysis.categorical.length,
+              descriptiveStats: dataAnalysis.descriptiveStats
+            },
+            error_message: aiError || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", report.id);
+
+        console.log(`Report ${report.id} completed successfully`);
 
         // Calculate next run time
         const nextRunAt = calculateNextRun(connection.schedule_frequency);
@@ -180,17 +210,13 @@ async function fetchSheetData(url: string, sheetType: string): Promise<string | 
     let csvUrl = url;
 
     if (sheetType === "google_sheets") {
-      // Convert Google Sheets URL to CSV export URL
       const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
       if (match) {
         const sheetId = match[1];
         csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
       }
     } else if (sheetType === "excel_online") {
-      // For Excel Online, try to extract download URL
-      // This is more complex and may require different handling
       if (url.includes("1drv.ms")) {
-        // Short URL - need to resolve
         const response = await fetch(url, { redirect: "follow" });
         csvUrl = response.url.replace("embed", "download");
       }
@@ -203,8 +229,7 @@ async function fetchSheetData(url: string, sheetType: string): Promise<string | 
       throw new Error(`Failed to fetch sheet: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.text();
-    return data;
+    return await response.text();
   } catch (error) {
     console.error("Error fetching sheet data:", error);
     return null;
@@ -227,9 +252,522 @@ function calculateNextRun(frequency: string): Date {
       break;
   }
 
-  // Set to 6 AM UTC for consistency
   next.setUTCHours(6, 0, 0, 0);
   return next;
+}
+
+// Enhanced data profiling and domain detection
+function analyzeDataset(headers: string[], dataRows: any[]) {
+  const analysis = {
+    types: {} as Record<string, string>,
+    numeric: [] as string[],
+    categorical: [] as string[],
+    dates: [] as string[],
+    identifiers: [] as string[],
+    missingValues: {} as Record<string, number>,
+    descriptiveStats: {} as Record<string, any>,
+    domain: 'general' as string,
+    domainConfidence: 0,
+    totalRows: dataRows.length,
+    totalColumns: headers.length
+  };
+
+  const domainKeywords = {
+    sales: ['sales', 'revenue', 'profit', 'order', 'customer', 'price', 'amount', 'total'],
+    hr: ['employee', 'hire_date', 'salary', 'department', 'attrition', 'staff', 'worker'],
+    finance: ['expense', 'budget', 'cost', 'account', 'financial', 'income', 'expenditure'],
+    operations: ['inventory', 'shipment', 'delivery', 'stock', 'supplier', 'logistics'],
+    marketing: ['campaign', 'impressions', 'clicks', 'leads', 'conversion', 'ads', 'ctr']
+  };
+
+  let domainScores = { sales: 0, hr: 0, finance: 0, operations: 0, marketing: 0, general: 0 };
+
+  headers.forEach((header, colIndex) => {
+    const headerLower = header.toLowerCase();
+    const values = dataRows.map(row => row[colIndex]).filter(val => val != null && val !== '');
+    const missingCount = dataRows.length - values.length;
+    
+    analysis.missingValues[header] = Math.round((missingCount / dataRows.length) * 100);
+
+    Object.entries(domainKeywords).forEach(([domain, keywords]) => {
+      keywords.forEach(keyword => {
+        if (headerLower.includes(keyword)) {
+          domainScores[domain as keyof typeof domainScores] += 1;
+        }
+      });
+    });
+
+    if (values.length === 0) {
+      analysis.types[header] = 'empty';
+      return;
+    }
+
+    const uniqueRatio = new Set(values).size / values.length;
+    if (uniqueRatio > 0.9 && (headerLower.includes('id') || headerLower.includes('key'))) {
+      analysis.types[header] = 'identifier';
+      analysis.identifiers.push(header);
+      return;
+    }
+
+    const numericValues = values.filter(val => !isNaN(Number(val)) && val !== '');
+    const numericRatio = numericValues.length / values.length;
+
+    const dateValues = values.filter(val => {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && val.toString().match(/\d{4}|\d{1,2}\/\d{1,2}/);
+    });
+    const dateRatio = dateValues.length / values.length;
+
+    if (dateRatio > 0.7) {
+      analysis.types[header] = 'date';
+      analysis.dates.push(header);
+    } else if (numericRatio > 0.7) {
+      analysis.types[header] = 'numeric';
+      analysis.numeric.push(header);
+      
+      const nums = numericValues.map(Number);
+      if (nums.length > 0) {
+        nums.sort((a, b) => a - b);
+        const sum = nums.reduce((a, b) => a + b, 0);
+        const mean = sum / nums.length;
+        const median = nums[Math.floor(nums.length / 2)];
+        const std = Math.sqrt(nums.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / nums.length);
+        
+        analysis.descriptiveStats[header] = {
+          count: nums.length,
+          mean: Math.round(mean * 100) / 100,
+          median: Math.round(median * 100) / 100,
+          std: Math.round(std * 100) / 100,
+          min: nums[0],
+          max: nums[nums.length - 1],
+          sum: Math.round(sum * 100) / 100
+        };
+      }
+    } else {
+      analysis.types[header] = 'categorical';
+      analysis.categorical.push(header);
+    }
+  });
+
+  const maxScore = Math.max(...Object.values(domainScores));
+  if (maxScore > 0) {
+    const detectedDomain = Object.entries(domainScores).find(([_, score]) => score === maxScore);
+    if (detectedDomain) {
+      analysis.domain = detectedDomain[0];
+      analysis.domainConfidence = Math.round((maxScore / headers.length) * 100);
+    }
+  }
+
+  return analysis;
+}
+
+// Generate intelligent charts based on domain and data types
+function generateIntelligentCharts(headers: string[], dataRows: any[], analysis: any) {
+  const charts = [];
+  const { domain, numeric, categorical, dates, descriptiveStats } = analysis;
+
+  if (domain === 'sales' && numeric.length > 0) {
+    if (dates.length > 0) {
+      const dateCol = dates[0];
+      const salesCol = numeric.find(col => 
+        col.toLowerCase().includes('sales') || 
+        col.toLowerCase().includes('revenue') || 
+        col.toLowerCase().includes('amount')
+      ) || numeric[0];
+      
+      charts.push({
+        type: 'line',
+        title: `${salesCol} Trend Over Time`,
+        data: dataRows.slice(0, 50).map((row, index) => ({
+          date: row[headers.indexOf(dateCol)],
+          value: Number(row[headers.indexOf(salesCol)]) || 0,
+          label: `${dateCol}: ${row[headers.indexOf(dateCol)]}`
+        }))
+      });
+    }
+
+    if (categorical.length > 0 && numeric.length > 0) {
+      const categoryCol = categorical[0];
+      const valueCol = numeric[0];
+      const aggregated = dataRows.reduce((acc: Record<string, number>, row) => {
+        const category = String(row[headers.indexOf(categoryCol)] || 'Unknown');
+        const value = Number(row[headers.indexOf(valueCol)]) || 0;
+        acc[category] = (acc[category] || 0) + value;
+        return acc;
+      }, {});
+
+      const topCategories = Object.entries(aggregated)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10);
+
+      charts.push({
+        type: 'bar',
+        title: `Top ${categoryCol} by ${valueCol}`,
+        data: topCategories.map(([name, value]) => ({
+          name: name.substring(0, 20),
+          value,
+          count: value
+        }))
+      });
+    }
+  } else if (domain === 'hr') {
+    if (categorical.length > 0) {
+      const deptCol = categorical.find(col => col.toLowerCase().includes('department')) || categorical[0];
+      const deptCounts = dataRows.reduce((acc: Record<string, number>, row) => {
+        const dept = String(row[headers.indexOf(deptCol)] || 'Unknown');
+        acc[dept] = (acc[dept] || 0) + 1;
+        return acc;
+      }, {});
+
+      charts.push({
+        type: 'pie',
+        title: `${deptCol} Distribution`,
+        data: Object.entries(deptCounts).map(([name, count]) => ({
+          name: name.substring(0, 15),
+          value: count,
+          count
+        }))
+      });
+    }
+
+    const salaryCol = numeric.find(col => col.toLowerCase().includes('salary'));
+    if (salaryCol && descriptiveStats[salaryCol]) {
+      charts.push({
+        type: 'histogram',
+        title: `${salaryCol} Distribution`,
+        data: [
+          { range: 'Min', value: descriptiveStats[salaryCol].min },
+          { range: 'Q1', value: descriptiveStats[salaryCol].min * 1.25 },
+          { range: 'Median', value: descriptiveStats[salaryCol].median },
+          { range: 'Q3', value: descriptiveStats[salaryCol].median * 1.25 },
+          { range: 'Max', value: descriptiveStats[salaryCol].max }
+        ]
+      });
+    }
+  }
+
+  if (dates.length > 0 && numeric.length > 0) {
+    const dateCol = dates[0];
+    const valueCol = numeric[0];
+    
+    charts.push({
+      type: 'line',
+      title: `${valueCol} Over Time`,
+      data: dataRows.slice(0, 100).map((row, index) => ({
+        date: row[headers.indexOf(dateCol)],
+        value: Number(row[headers.indexOf(valueCol)]) || 0,
+        index
+      }))
+    });
+  }
+
+  if (numeric.length >= 2) {
+    const correlationData = [];
+    for (let i = 0; i < Math.min(numeric.length, 5); i++) {
+      for (let j = i + 1; j < Math.min(numeric.length, 5); j++) {
+        const col1 = numeric[i];
+        const col2 = numeric[j];
+        const values1 = dataRows.map(row => Number(row[headers.indexOf(col1)])).filter(v => !isNaN(v));
+        const values2 = dataRows.map(row => Number(row[headers.indexOf(col2)])).filter(v => !isNaN(v));
+        
+        if (values1.length > 10 && values2.length > 10) {
+          correlationData.push({
+            x: col1.substring(0, 10),
+            y: col2.substring(0, 10),
+            correlation: calculateCorrelation(values1, values2)
+          });
+        }
+      }
+    }
+
+    if (correlationData.length > 0) {
+      charts.push({
+        type: 'correlation',
+        title: 'Variable Correlations',
+        data: correlationData
+      });
+    }
+  }
+
+  if (Object.keys(descriptiveStats).length > 0) {
+    const statsData = Object.entries(descriptiveStats).slice(0, 6).map(([col, stats]) => ({
+      name: col.substring(0, 12),
+      mean: stats.mean,
+      median: stats.median,
+      std: stats.std,
+      count: stats.count
+    }));
+
+    charts.push({
+      type: 'statistics',
+      title: 'Statistical Summary',
+      data: statsData
+    });
+  }
+
+  if (charts.length === 0) {
+    charts.push({
+      type: 'bar',
+      title: 'Data Overview',
+      data: headers.slice(0, 10).map((header, index) => ({
+        name: header.substring(0, 15),
+        count: dataRows.length,
+        value: dataRows.length
+      }))
+    });
+  }
+
+  return charts;
+}
+
+function calculateCorrelation(x: number[], y: number[]): number {
+  const n = Math.min(x.length, y.length);
+  if (n < 2) return 0;
+  
+  const sumX = x.slice(0, n).reduce((a, b) => a + b, 0);
+  const sumY = y.slice(0, n).reduce((a, b) => a + b, 0);
+  const sumXY = x.slice(0, n).reduce((sum, xi, i) => sum + xi * y[i], 0);
+  const sumX2 = x.slice(0, n).reduce((sum, xi) => sum + xi * xi, 0);
+  const sumY2 = y.slice(0, n).reduce((sum, yi) => sum + yi * yi, 0);
+  
+  const numerator = n * sumXY - sumX * sumY;
+  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  
+  return denominator === 0 ? 0 : Math.round((numerator / denominator) * 100) / 100;
+}
+
+async function generateAIInsights(
+  dataAnalysis: any,
+  headers: string[],
+  dataRows: any[],
+  rawRows: any[]
+): Promise<{ structuredSummary: any; aiError: string | null }> {
+  let structuredSummary: any = null;
+  let aiError: string | null = null;
+
+  // Calculate top categories and primary metrics
+  const topCategories = dataAnalysis.categorical.length > 0 ? 
+    (() => {
+      const categoryCol = dataAnalysis.categorical[0];
+      const categoryIndex = headers.indexOf(categoryCol);
+      const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+        const category = String(row[categoryCol] || 'Unspecified').trim();
+        if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+          acc[category] = (acc[category] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      return Object.entries(counts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
+        .map(([name, count]) => `${name}: ${count} records (${Math.round(count/dataRows.length*100)}%)`);
+    })() : [];
+
+  const primaryMetrics = (() => {
+    if (dataAnalysis.domain === 'hr') {
+      const salaryCol = dataAnalysis.numeric.find(col => 
+        col.toLowerCase().includes('salary') || 
+        col.toLowerCase().includes('wage') || 
+        col.toLowerCase().includes('compensation')
+      ) || dataAnalysis.numeric[0];
+      return salaryCol ? { column: salaryCol, stats: dataAnalysis.descriptiveStats[salaryCol] } : null;
+    } else if (dataAnalysis.domain === 'sales') {
+      const revenueCol = dataAnalysis.numeric.find(col => 
+        col.toLowerCase().includes('sales') || 
+        col.toLowerCase().includes('revenue') || 
+        col.toLowerCase().includes('amount') ||
+        col.toLowerCase().includes('total')
+      ) || dataAnalysis.numeric[0];
+      return revenueCol ? { column: revenueCol, stats: dataAnalysis.descriptiveStats[revenueCol] } : null;
+    } else {
+      const primaryCol = dataAnalysis.numeric[0];
+      return primaryCol ? { column: primaryCol, stats: dataAnalysis.descriptiveStats[primaryCol] } : null;
+    }
+  })();
+
+  // Try AI providers (Lovable AI → OpenAI → Fallback)
+  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  
+  let aiProvider = 'none';
+  let aiApiKey = null;
+  let aiEndpoint = null;
+  let aiModel = 'gpt-4o-mini';
+  
+  if (lovableApiKey) {
+    aiProvider = 'lovable';
+    aiApiKey = lovableApiKey;
+    aiEndpoint = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+    aiModel = 'google/gemini-2.5-flash';
+    console.log('Using Lovable AI with Gemini 2.5 Flash');
+  } else if (openaiApiKey) {
+    aiProvider = 'openai';
+    aiApiKey = openaiApiKey;
+    aiEndpoint = 'https://api.openai.com/v1/chat/completions';
+    aiModel = 'gpt-4o-mini';
+    console.log('Using OpenAI with GPT-4o-mini');
+  } else {
+    console.log('No AI provider available, using statistical fallback');
+  }
+
+  if (aiProvider !== 'none') {
+    try {
+      const prompt = [
+        {
+          role: 'system',
+          content: `You are a senior ${dataAnalysis.domain} analyst. Analyze the data and provide insights in JSON format:
+{
+  "summary": "Executive summary with key insights",
+  "keyFindings": ["Finding 1 with metrics", "Finding 2", "Finding 3"],
+  "recommendations": ["Recommendation 1", "Recommendation 2", "Recommendation 3"],
+  "nextSteps": ["Step 1", "Step 2", "Step 3"]
+}
+Use actual numbers and percentages from the data. Be specific and actionable.`
+        },
+        {
+          role: 'user', 
+          content: `Analyze this ${dataAnalysis.domain.toUpperCase()} dataset:
+- Records: ${dataAnalysis.totalRows.toLocaleString()}
+- Columns: ${dataAnalysis.totalColumns}
+- Domain confidence: ${dataAnalysis.domainConfidence}%
+
+Key Statistics:
+${JSON.stringify(dataAnalysis.descriptiveStats, null, 2)}
+
+Top Categories:
+${topCategories.join('\n')}
+
+Primary Metric: ${primaryMetrics?.column || 'N/A'} - Mean: ${primaryMetrics?.stats?.mean || 'N/A'}, Sum: ${primaryMetrics?.stats?.sum || 'N/A'}
+
+Sample Data (first 3 rows):
+${JSON.stringify(dataRows.slice(0, 3), null, 2)}
+
+Provide executive-level insights with specific recommendations.`
+        }
+      ];
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      const resp = await fetch(aiEndpoint!, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${aiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: aiModel,
+          messages: prompt,
+          temperature: 0.1,
+          max_tokens: 1500,
+          response_format: { type: "json_object" }
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (resp.status === 429) {
+        console.warn('AI rate limit exceeded');
+        aiError = 'AI rate limit - using statistical analysis';
+      } else if (resp.status === 402) {
+        console.warn('AI quota exceeded');
+        aiError = 'AI quota exceeded - using statistical analysis';
+      } else if (!resp.ok) {
+        const errorText = await resp.text();
+        console.error('AI API error:', resp.status, errorText);
+        aiError = `AI error: ${resp.status}`;
+      } else {
+        const js = await resp.json();
+        const content = js.choices?.[0]?.message?.content ?? '';
+        
+        if (content) {
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
+              structuredSummary = {
+                keyFindings: parsed.keyFindings,
+                additionalKPIs: parsed.nextSteps || [],
+                recommendations: parsed.recommendations
+              };
+              console.log('AI insights generated successfully');
+            }
+          } catch (e) {
+            console.error('Failed to parse AI response:', e);
+            aiError = 'Failed to parse AI response';
+          }
+        }
+      }
+    } catch (e) {
+      console.error('AI integration error:', e);
+      if (e.name === 'AbortError') {
+        aiError = 'AI request timed out';
+      } else {
+        aiError = `AI error: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+  }
+
+  // Statistical fallback if AI failed
+  if (!structuredSummary) {
+    console.log('Using statistical fallback for insights');
+    
+    const topCategory = dataAnalysis.categorical.length > 0 ? 
+      (() => {
+        const categoryCol = dataAnalysis.categorical[0];
+        const counts = dataRows.reduce((acc: Record<string, number>, row) => {
+          const category = String(row[categoryCol] || 'Unspecified').trim();
+          if (category && category !== 'null' && category !== 'undefined' && category !== '') {
+            acc[category] = (acc[category] || 0) + 1;
+          }
+          return acc;
+        }, {});
+        
+        const entries = Object.entries(counts).filter(([name]) => name && name !== 'Unspecified');
+        if (entries.length === 0) return null;
+        
+        const topEntry = entries.sort(([,a], [,b]) => b - a)[0];
+        return { 
+          name: topEntry[0], 
+          count: topEntry[1], 
+          percentage: Math.round(topEntry[1]/dataRows.length*100)
+        };
+      })() : null;
+
+    const keyFindings = [];
+    
+    if (topCategory) {
+      keyFindings.push(`${topCategory.name} is the leading ${dataAnalysis.categorical[0]} with ${topCategory.count.toLocaleString()} records (${topCategory.percentage}% of dataset)`);
+    }
+    
+    if (primaryMetrics?.stats) {
+      keyFindings.push(`Average ${primaryMetrics.column}: $${primaryMetrics.stats.mean?.toLocaleString() || 'N/A'}, Total: $${primaryMetrics.stats.sum?.toLocaleString() || 'N/A'}`);
+    }
+    
+    keyFindings.push(`Data quality: ${Math.round(100 - (Object.values(dataAnalysis.missingValues).filter(v => v > 20).length / headers.length * 100))}% completeness across ${headers.length} dimensions`);
+
+    const recommendations = [];
+    if (topCategory) {
+      recommendations.push(`Focus on ${topCategory.name} segment which drives ${topCategory.percentage}% of activity`);
+    }
+    if (primaryMetrics?.stats?.mean) {
+      recommendations.push(`Optimize around $${Math.round(primaryMetrics.stats.mean).toLocaleString()} average ${primaryMetrics.column.toLowerCase()} value`);
+    }
+    recommendations.push(`Leverage ${dataAnalysis.domain}-specific insights for strategic decisions`);
+
+    structuredSummary = {
+      keyFindings,
+      additionalKPIs: [
+        `Total records: ${dataRows.length.toLocaleString()}`,
+        `Business dimensions: ${headers.length}`,
+        `Domain: ${dataAnalysis.domain} (${dataAnalysis.domainConfidence}% confidence)`
+      ],
+      recommendations
+    };
+  }
+
+  return { structuredSummary, aiError };
 }
 
 async function sendEmailNotification(
@@ -244,7 +782,6 @@ async function sendEmailNotification(
   }
 
   try {
-    // Get user email from auth
     const { data: userData } = await supabase.auth.admin.getUserById(connection.user_id);
     const userEmail = userData?.user?.email;
 
