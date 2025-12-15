@@ -145,8 +145,9 @@ export const LiveSheetConnector: React.FC<LiveSheetConnectorProps> = ({ onConnec
 
       if (error) throw error;
 
-      toast.success('Live sheet connected! First analysis will run at the scheduled time.', {
-        description: `Next run: ${nextRunAt.toLocaleDateString()} at ${nextRunAt.toLocaleTimeString()}`
+      const frequencyText = scheduleFrequency === 'daily' ? 'daily' : scheduleFrequency === 'weekly' ? 'weekly' : 'monthly';
+      toast.success('Connected! Running first analysis now...', {
+        description: `Subsequent analyses will run ${frequencyText} starting ${nextRunAt.toLocaleDateString()}`
       });
 
       setSheetUrl('');
