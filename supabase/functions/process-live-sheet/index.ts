@@ -81,7 +81,7 @@ serve(async (req: Request): Promise<Response> => {
 
         if (uploadError) throw uploadError;
 
-        // Create a report entry
+        // Create a report entry with connection_id for linking
         const { data: report, error: reportError } = await supabase
           .from("spreadsheet_reports")
           .insert({
@@ -90,6 +90,7 @@ serve(async (req: Request): Promise<Response> => {
             original_filename: `${connection.sheet_name}.csv`,
             title: `${connection.sheet_name} - ${new Date().toLocaleDateString()}`,
             processing_status: "processing",
+            connection_id: connection.id,
           })
           .select()
           .single();
