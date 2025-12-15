@@ -164,6 +164,7 @@ export type Database = {
         Row: {
           chart_data: Json | null
           column_count: number | null
+          connection_id: string | null
           created_at: string
           error_message: string | null
           file_path: string
@@ -182,6 +183,7 @@ export type Database = {
         Insert: {
           chart_data?: Json | null
           column_count?: number | null
+          connection_id?: string | null
           created_at?: string
           error_message?: string | null
           file_path: string
@@ -200,6 +202,7 @@ export type Database = {
         Update: {
           chart_data?: Json | null
           column_count?: number | null
+          connection_id?: string | null
           created_at?: string
           error_message?: string | null
           file_path?: string
@@ -215,7 +218,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spreadsheet_reports_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "live_sheet_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
