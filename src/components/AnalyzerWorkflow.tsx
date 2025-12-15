@@ -75,6 +75,12 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
     }
   };
 
+  const handleViewReport = (reportIdToView: string) => {
+    // Set the report ID and jump to results view
+    setReportId(reportIdToView);
+    setCurrentStep('results');
+  };
+
   const handleQuestionSubmitted = async (question?: string) => {
     if (!uploadedFile) return;
     
@@ -251,7 +257,10 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
         <CardContent className="p-6">
           {currentStep === 'upload' && (
             <div className="space-y-4">
-              <DataConnectionSelector onConnectionComplete={handleConnectionComplete} />
+              <DataConnectionSelector 
+                onConnectionComplete={handleConnectionComplete} 
+                onViewReport={handleViewReport}
+              />
               
               {/* View Previous Reports Button */}
               {onViewReports && (
