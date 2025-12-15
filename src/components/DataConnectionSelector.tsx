@@ -46,11 +46,13 @@ interface LiveSheetConnection {
 interface DataConnectionSelectorProps {
   onConnectionComplete: (connectionData: ConnectionData) => void;
   onViewReports?: (connectionId: string) => void;
+  onViewReport?: (reportId: string) => void;
 }
 
 export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
   onConnectionComplete,
-  onViewReports
+  onViewReports,
+  onViewReport
 }) => {
   const [selectedMethod, setSelectedMethod] = useState<ConnectionMethod | null>(null);
   const [existingConnections, setExistingConnections] = useState<LiveSheetConnection[]>([]);
@@ -103,14 +105,22 @@ export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
     try {
       setRunningAnalysis(connectionId);
       
-      const { error } = await supabase.functions.invoke('process-live-sheet', {
+      const { data, error } = await supabase.functions.invoke('process-live-sheet', {
         body: { connectionId }
       });
 
       if (error) throw error;
 
-      toast.success('Analysis started! You\'ll receive an email when complete.');
-      fetchExistingConnections();
+      // Extract reportId from response and navigate to it
+      const reportId = data?.results?.[0]?.reportId;
+      if (reportId && onViewReport) {
+        toast.success('Analysis complete!');
+        fetchExistingConnections();
+        onViewReport(reportId);
+      } else {
+        toast.success('Analysis complete!');
+        fetchExistingConnections();
+      }
     } catch (error: any) {
       console.error('Error running analysis:', error);
       toast.error('Failed to start analysis', { description: error.message });
