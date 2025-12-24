@@ -60,6 +60,8 @@ serve(async (req: Request): Promise<Response> => {
     for (const connection of connections || []) {
       try {
         console.log(`Processing connection: ${connection.id} - ${connection.sheet_name}`);
+        const isScheduledRun = runScheduled === true;
+        const isManualRun = !isScheduledRun && connectionId !== undefined;
 
         // Fetch the sheet data
         const sheetData = await fetchSheetData(connection.sheet_url, connection.sheet_type);
@@ -67,6 +69,41 @@ serve(async (req: Request): Promise<Response> => {
         if (!sheetData) {
           throw new Error("Failed to fetch sheet data. Make sure the sheet is publicly accessible.");
         }
+
+        // Calculate hash of sheet data for change detection
+        const currentDataHash = await generateDataHash(sheetData);
+        const previousDataHash = connection.last_data_hash;
+        
+        console.log(`Hash comparison - Previous: ${previousDataHash?.substring(0, 8) || 'none'}, Current: ${currentDataHash.substring(0, 8)}`);
+
+        // For scheduled runs, check if data has changed
+        if (isScheduledRun && previousDataHash && previousDataHash === currentDataHash) {
+          console.log(`No changes detected for ${connection.sheet_name}, skipping report generation`);
+          
+          // Update last_checked_at and next_run_at even when skipping
+          const nextRunAt = calculateNextRun(connection.schedule_frequency);
+          await supabase
+            .from("live_sheet_connections")
+            .update({
+              last_checked_at: new Date().toISOString(),
+              next_run_at: nextRunAt.toISOString(),
+              error_message: null,
+            })
+            .eq("id", connection.id);
+
+          results.push({ 
+            connectionId: connection.id, 
+            success: true, 
+            action: "skipped_no_changes",
+            message: "No changes detected in sheet data"
+          });
+          continue;
+        }
+
+        console.log(isManualRun 
+          ? `Manual run triggered, generating report regardless of changes` 
+          : `Changes detected, generating new report`
+        );
 
         // Upload the data to storage
         const fileName = `live-sheet-${connection.id}-${Date.now()}.csv`;
@@ -163,21 +200,28 @@ serve(async (req: Request): Promise<Response> => {
         // Calculate next run time
         const nextRunAt = calculateNextRun(connection.schedule_frequency);
 
-        // Update connection status
+        // Update connection status with new hash
         await supabase
           .from("live_sheet_connections")
           .update({
             last_run_at: new Date().toISOString(),
+            last_checked_at: new Date().toISOString(),
             next_run_at: nextRunAt.toISOString(),
             last_report_id: report.id,
+            last_data_hash: currentDataHash,
             error_message: null,
           })
           .eq("id", connection.id);
 
-        // Send email notification
+        // Send email notification only when a new report is generated
         await sendEmailNotification(supabase, connection, report);
 
-        results.push({ connectionId: connection.id, success: true, reportId: report.id });
+        results.push({ 
+          connectionId: connection.id, 
+          success: true, 
+          reportId: report.id,
+          action: "report_generated"
+        });
       } catch (error: any) {
         console.error(`Error processing connection ${connection.id}:`, error);
 
@@ -186,6 +230,7 @@ serve(async (req: Request): Promise<Response> => {
           .from("live_sheet_connections")
           .update({
             error_message: error.message,
+            last_checked_at: new Date().toISOString(),
           })
           .eq("id", connection.id);
 
@@ -234,6 +279,15 @@ async function fetchSheetData(url: string, sheetType: string): Promise<string | 
     console.error("Error fetching sheet data:", error);
     return null;
   }
+}
+
+// Generate SHA-256 hash of data for change detection
+async function generateDataHash(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function calculateNextRun(frequency: string): Date {

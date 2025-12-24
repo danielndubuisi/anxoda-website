@@ -50,6 +50,8 @@ export type Database = {
           error_message: string | null
           id: string
           is_active: boolean
+          last_checked_at: string | null
+          last_data_hash: string | null
           last_report_id: string | null
           last_run_at: string | null
           next_run_at: string
@@ -65,6 +67,8 @@ export type Database = {
           error_message?: string | null
           id?: string
           is_active?: boolean
+          last_checked_at?: string | null
+          last_data_hash?: string | null
           last_report_id?: string | null
           last_run_at?: string | null
           next_run_at: string
@@ -80,6 +84,8 @@ export type Database = {
           error_message?: string | null
           id?: string
           is_active?: boolean
+          last_checked_at?: string | null
+          last_data_hash?: string | null
           last_report_id?: string | null
           last_run_at?: string | null
           next_run_at?: string
