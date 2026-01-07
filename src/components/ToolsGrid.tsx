@@ -15,8 +15,8 @@ interface Tool {
 const tools: Tool[] = [
   {
     id: "spreadsheet-analyzer",
-    name: "Spreadsheet Analyzer",
-    description: "Upload spreadsheets and get AI-powered insights, trends, and recommendations",
+    name: "A.S.S",
+    description: "Upload spreadsheets and get AI-powered insights, trends, and recommendations from the Auto Spreadsheet Summarizer (A.S.S)",
     icon: FileSpreadsheet,
     status: "active",
     gradientFrom: "from-blue-500",
@@ -24,7 +24,7 @@ const tools: Tool[] = [
   },
   {
     id: "cvp-analyzer",
-    name: "CVP Analyzer",
+    name: "ProfitPro",
     description: "Analyze Cost-Volume-Profit relationships to optimize pricing and profitability",
     icon: TrendingUp,
     status: "coming-soon",

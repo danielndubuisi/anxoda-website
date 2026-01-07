@@ -62,7 +62,7 @@ const teamMembers = [
     {
         name: "Ikenna M.D. Nwankwo",
         role: "Co-Founder",
-        bio: "Passionate about empowering small businesses through technology and data consulting.",
+        bio: "Global business analyst passionate about turning data insights into intelligent growth systems.",
         image: ikennaImage,
         linkedin: "https://www.linkedin.com/in/ikenna-m-d-nwankwo-3a2390258",
         email: "martin.nwankwo.169@gmail.com",
