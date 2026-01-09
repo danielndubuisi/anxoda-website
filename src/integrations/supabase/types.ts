@@ -44,68 +44,6 @@ export type Database = {
         }
         Relationships: []
       }
-      live_sheet_connections: {
-        Row: {
-          created_at: string
-          error_message: string | null
-          id: string
-          is_active: boolean
-          last_checked_at: string | null
-          last_data_hash: string | null
-          last_report_id: string | null
-          last_run_at: string | null
-          next_run_at: string
-          schedule_frequency: string
-          sheet_name: string
-          sheet_type: string
-          sheet_url: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          is_active?: boolean
-          last_checked_at?: string | null
-          last_data_hash?: string | null
-          last_report_id?: string | null
-          last_run_at?: string | null
-          next_run_at: string
-          schedule_frequency: string
-          sheet_name: string
-          sheet_type: string
-          sheet_url: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          is_active?: boolean
-          last_checked_at?: string | null
-          last_data_hash?: string | null
-          last_report_id?: string | null
-          last_run_at?: string | null
-          next_run_at?: string
-          schedule_frequency?: string
-          sheet_name?: string
-          sheet_type?: string
-          sheet_url?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "live_sheet_connections_last_report_id_fkey"
-            columns: ["last_report_id"]
-            isOneToOne: false
-            referencedRelation: "spreadsheet_reports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       newsletter_subscriptions: {
         Row: {
           created_at: string
@@ -170,7 +108,6 @@ export type Database = {
         Row: {
           chart_data: Json | null
           column_count: number | null
-          connection_id: string | null
           created_at: string
           error_message: string | null
           file_path: string
@@ -189,7 +126,6 @@ export type Database = {
         Insert: {
           chart_data?: Json | null
           column_count?: number | null
-          connection_id?: string | null
           created_at?: string
           error_message?: string | null
           file_path: string
@@ -208,7 +144,6 @@ export type Database = {
         Update: {
           chart_data?: Json | null
           column_count?: number | null
-          connection_id?: string | null
           created_at?: string
           error_message?: string | null
           file_path?: string
@@ -224,15 +159,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "spreadsheet_reports_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "live_sheet_connections"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_roles: {
         Row: {

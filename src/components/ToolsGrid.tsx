@@ -156,16 +156,16 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
 
                   {tool.id === "swot-analysis" && (
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="aspect-[3/1] rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                      <div className="aspect-square rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">S</span>
                       </div>
-                      <div className="aspect-[3/1] rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                      <div className="aspect-square rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">W</span>
                       </div>
-                      <div className="aspect-[3/1] rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                      <div className="aspect-square rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">O</span>
                       </div>
-                      <div className="aspect-[3/1] rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                      <div className="aspect-square rounded bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">T</span>
                       </div>
                     </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DataConnectionSelector } from '@/components/DataConnectionSelector';
+import { SpreadsheetUploader } from '@/components/SpreadsheetUploader';
 import { QuestionInput } from '@/components/QuestionInput';
 import { ReportViewer } from '@/components/ReportViewer';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,18 +15,16 @@ import {
   Clock, 
   ArrowRight,
   FileSpreadsheet,
-  Sparkles,
-  FileText
+  Sparkles
 } from 'lucide-react';
 
 interface AnalyzerWorkflowProps {
   onReportGenerated?: () => void;
-  onViewReports?: () => void;
 }
 
 type WorkflowStep = 'upload' | 'question' | 'processing' | 'results';
 
-export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGenerated, onViewReports }) => {
+export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGenerated }) => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
@@ -38,8 +36,8 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
   const steps = [
     {
       id: 'upload',
-      title: 'Connect Data',
-      description: 'Connect your data source',
+      title: 'Upload File',
+      description: 'Select your spreadsheet file',
       icon: Upload,
       completed: !!uploadedFile
     },
@@ -66,19 +64,10 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
     }
   ];
 
-  const handleConnectionComplete = (connectionData: any) => {
-    // For now, we only handle upload type
-    if (connectionData.type === 'upload' && connectionData.file && connectionData.fileUrl) {
-      setUploadedFile(connectionData.file);
-      setUploadedFileUrl(connectionData.fileUrl);
-      setCurrentStep('question');
-    }
-  };
-
-  const handleViewReport = (reportIdToView: string) => {
-    // Set the report ID and jump to results view
-    setReportId(reportIdToView);
-    setCurrentStep('results');
+  const handleFileUploaded = (file: File, fileUrl: string) => {
+    setUploadedFile(file);
+    setUploadedFileUrl(fileUrl);
+    setCurrentStep('question');
   };
 
   const handleQuestionSubmitted = async (question?: string) => {
@@ -256,33 +245,17 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
       <Card>
         <CardContent className="p-6">
           {currentStep === 'upload' && (
-            <div className="space-y-4">
-              <DataConnectionSelector 
-                onConnectionComplete={handleConnectionComplete} 
-                onViewReport={handleViewReport}
-              />
-              
-              {/* View Previous Reports Button */}
-              {onViewReports && (
-                <div className="pt-4 border-t">
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-sm mb-1">Already have reports?</h4>
-                      <p className="text-xs text-muted-foreground">
-                        View and compare your previous analysis
-                      </p>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={onViewReports}
-                      className="gap-2"
-                    >
-                      <FileText className="w-4 h-4" />
-                      View Reports
-                    </Button>
-                  </div>
-                </div>
-              )}
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                <Upload className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-2">Upload Your Spreadsheet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Upload Excel (.xlsx, .xls) or CSV files to get started with AI-powered analysis
+                </p>
+              </div>
+              <SpreadsheetUploader onUploadSuccess={handleFileUploaded} />
             </div>
           )}
 

@@ -29,22 +29,6 @@ if not (SUPABASE_URL and SUPABASE_SERVICE_KEY):
 
 supa = Supa(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-def sanitize_error_message(error: Exception) -> str:
-    """Return user-friendly error without internal details"""
-    error_map = {
-        requests.exceptions.RequestException: "Failed to download file",
-        FileNotFoundError: "File not found",
-        ValueError: "Invalid data format",
-        RuntimeError: "Processing error occurred",
-        json.JSONDecodeError: "Invalid data format",
-    }
-    
-    for exc_type, message in error_map.items():
-        if isinstance(error, exc_type):
-            return message
-    
-    return "An error occurred during processing"
-
 class AnalyzePayload(BaseModel):
     reportId: str
     userId: str
@@ -86,10 +70,9 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
         content = download_with_fallback(payload.signedUrl)
         logging.info(f"File downloaded successfully: {len(content)} bytes")
     except Exception as e:
-        user_message = sanitize_error_message(e)
-        logging.error(f"Download failed for report {payload.reportId}: {e}", exc_info=True)
-        supa.update_report(payload.reportId, {"processing_status": "failed", "error_message": user_message})
-        raise HTTPException(400, detail=user_message)
+        logging.error(f"Download failed for report {payload.reportId}: {e}")
+        supa.update_report(payload.reportId, {"processing_status": "failed", "error": f"Download failed: {e}"})
+        raise HTTPException(400, detail=f"Download failed: {e}")
 
     # 2) Run EDA
     logging.info(f"Running EDA analysis for report {payload.reportId}")
@@ -97,10 +80,9 @@ def analyze(payload: AnalyzePayload, authorization: str = Header(None)):
         chart_json, images, pdf_bytes = eda_from_bytes(content)
         logging.info(f"EDA completed: {len(images)} images generated, PDF size: {len(pdf_bytes)} bytes")
     except Exception as e:
-        user_message = sanitize_error_message(e)
-        logging.error(f"EDA failed for report {payload.reportId}: {e}", exc_info=True)
-        supa.update_report(payload.reportId, {"processing_status": "failed", "error_message": user_message})
-        raise HTTPException(500, detail=user_message)
+        logging.error(f"EDA failed for report {payload.reportId}: {e}")
+        supa.update_report(payload.reportId, {"processing_status": "failed", "error": f"EDA failed: {e}"})
+        raise HTTPException(500, detail=f"EDA failed: {e}")
 
     # 3) Upload outputs
     logging.info(f"Uploading outputs to {REPORTS_BUCKET} bucket for report {payload.reportId}")

@@ -28,47 +28,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(resendApiKey);
 
-    // Create Supabase client with service role key for database operations
+    const { email, user_role }: NewsletterRequest & { user_role?: string } = await req.json();
+
+    console.log("Processing newsletter subscription:", { email });
+
+    // Create Supabase client with service role key
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
 
-    // Handle admin-only GET request to fetch newsletter list
+    // Only allow admin to fetch the newsletter list
     if (req.method === "GET") {
-      // Validate admin role via JWT - never trust client-supplied roles
-      const authHeader = req.headers.get('Authorization');
-      if (!authHeader) {
-        console.log("GET request missing Authorization header");
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      if (user_role !== "admin") {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: corsHeaders });
       }
-
-      // Create auth client to validate the JWT
-      const supabaseAuth = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-        { global: { headers: { Authorization: authHeader } } }
-      );
-
-      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-      if (userError || !user) {
-        console.log("GET request failed user validation:", userError?.message);
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
-      }
-
-      // Verify admin role using the database function
-      const { data: isAdmin, error: roleError } = await supabaseClient.rpc('has_role', {
-        _user_id: user.id,
-        _role: 'admin'
-      });
-
-      if (roleError || !isAdmin) {
-        console.log("GET request denied - user is not admin:", user.id);
-        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
-      }
-
-      console.log("Admin verified, fetching newsletter list for:", user.id);
       const { data: list, error: listError } = await supabaseClient
         .from("newsletter_subscriptions")
         .select("email")
@@ -78,10 +53,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
       return new Response(JSON.stringify({ emails: list }), { status: 200, headers: corsHeaders });
     }
-
-    const { email }: NewsletterRequest = await req.json();
-
-    console.log("Processing newsletter subscription:", { email });
 
     // Check if email already exists
     const { data: existingSubscription } = await supabaseClient
