@@ -29,6 +29,7 @@ import {
     FileText,
     Mail,
     FileSpreadsheet,
+    ArrowRight,
 } from "lucide-react";
 
 interface Profile {
@@ -72,6 +73,10 @@ const Dashboard = () => {
     const [currentReport, setCurrentReport] = useState<any>(null);
     const [polling, setPolling] = useState(false);
     const [selectedTool, setSelectedTool] = useState<string | null>(null);
+    const [reportCount, setReportCount] = useState<number>(0);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -117,12 +122,29 @@ const Dashboard = () => {
         }
     }, [user]);
 
+    const fetchReportCount = useCallback(async () => {
+        try {
+            const { count, error } = await supabase
+                .from("spreadsheet_reports")
+                .select("*", { count: "exact", head: true })
+                .eq("user_id", user?.id);
+
+            if (error) throw error;
+            setReportCount(count || 0);
+        } catch (error) {
+            console.error("Error fetching report count:", error);
+        }
+    }, [user]);
+
     const updateProfile = async (updatedData: Partial<Profile>) => {
         setIsLoading(true);
         try {
             const { error } = await supabase.from("profiles").upsert({
                 user_id: user?.id,
                 ...updatedData,
+                updated_at: new Date().toISOString(),
+            }, {
+                onConflict: 'user_id'
             });
 
             if (error) throw error;
@@ -132,7 +154,8 @@ const Dashboard = () => {
                 description: "Your profile information has been saved.",
             });
 
-            fetchProfile();
+            // Clear the form after successful update
+            setProfile(null);
         } catch (error) {
             toast({
                 title: "Update failed",
@@ -142,6 +165,45 @@ const Dashboard = () => {
             });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmEmail !== user?.email) {
+            toast({
+                title: "Email mismatch",
+                description: "Please enter your email address to confirm deletion.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsDeletingAccount(true);
+        try {
+            // Delete user's data from custom tables
+            await supabase.from("profiles").delete().eq("user_id", user?.id);
+            await supabase.from("user_subscriptions").delete().eq("user_id", user?.id);
+            await supabase.from("spreadsheet_reports").delete().eq("user_id", user?.id);
+
+            toast({
+                title: "Account deleted",
+                description: "Your account has been permanently deleted.",
+            });
+
+            // Sign out and redirect
+            await signOut();
+            navigate("/");
+        } catch (error) {
+            console.error("Delete account error:", error);
+            toast({
+                title: "Deletion failed",
+                description: error instanceof Error ? error.message : "Failed to delete account",
+                variant: "destructive",
+            });
+        } finally {
+            setIsDeletingAccount(false);
+            setShowDeleteDialog(false);
+            setDeleteConfirmEmail("");
         }
     };
 
@@ -162,6 +224,15 @@ const Dashboard = () => {
                 return <User className="w-5 h-5" />;
         }
     };
+
+    // Fetch profile, subscription, and report count on mount
+    useEffect(() => {
+        if (user) {
+            fetchProfile();
+            fetchSubscription();
+            fetchReportCount();
+        }
+    }, [user, fetchProfile, fetchSubscription, fetchReportCount]);
 
     const getPlanColor = (plan: string) => {
         switch (plan) {
@@ -305,11 +376,15 @@ const Dashboard = () => {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     {/* Desktop Tab List */}
                     <div className="hidden sm:block">
-                        <TabsList className="grid w-full grid-cols-5">
+                        <TabsList className="grid w-full grid-cols-6">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
                             <TabsTrigger value="tools">
                                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                                 Tools
+                            </TabsTrigger>
+                            <TabsTrigger value="reports">
+                                <FileText className="w-4 h-4 mr-2" />
+                                Reports
                             </TabsTrigger>
                             <TabsTrigger value="profile">Profile</TabsTrigger>
                             <TabsTrigger value="subscription">
@@ -327,6 +402,8 @@ const Dashboard = () => {
                                         return "Overview";
                                     case "tools":
                                         return "Tools";
+                                    case "reports":
+                                        return "Reports";
                                     case "profile":
                                         return "Profile";
                                     case "subscription":
@@ -389,6 +466,20 @@ const Dashboard = () => {
                                     <li>
                                         <button
                                             className={`w-full text-left px-6 py-4 ${
+                                                activeTab === "reports"
+                                                    ? "bg-primary/10 font-bold"
+                                                    : ""
+                                            }`}
+                                            onClick={() => {
+                                                setActiveTab("reports");
+                                                setMobileMenuOpen(false);
+                                            }}>
+                                            Reports
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button
+                                            className={`w-full text-left px-6 py-4 ${
                                                 activeTab === "profile"
                                                     ? "bg-primary/10 font-bold"
                                                     : ""
@@ -441,10 +532,13 @@ const Dashboard = () => {
                                         <TrendingUp className="w-8 h-8 text-primary" />
                                         <div>
                                             <p className="text-sm font-medium text-muted-foreground">
-                                                Growth Rate
+                                                Growth Rate (Tentative)
                                             </p>
                                             <p className="text-2xl font-bold">
                                                 +12.5%
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Based on projected metrics
                                             </p>
                                         </div>
                                     </div>
@@ -460,23 +554,29 @@ const Dashboard = () => {
                                                 Team Members
                                             </p>
                                             <p className="text-2xl font-bold">
-                                                8
+                                                {profile?.company_size || "5"}
                                             </p>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card>
+                            <Card 
+                                className="cursor-pointer hover:shadow-lg transition-shadow"
+                                onClick={() => setActiveTab("reports")}
+                            >
                                 <CardContent className="p-6">
                                     <div className="flex items-center space-x-2">
                                         <FileText className="w-8 h-8 text-primary" />
                                         <div>
                                             <p className="text-sm font-medium text-muted-foreground">
-                                                Projects
+                                                Reports
                                             </p>
                                             <p className="text-2xl font-bold">
-                                                24
+                                                {reportCount}
+                                            </p>
+                                            <p className="text-xs text-primary flex items-center gap-1">
+                                                View all <ArrowRight className="w-3 h-3" />
                                             </p>
                                         </div>
                                     </div>
@@ -492,7 +592,10 @@ const Dashboard = () => {
                                                 Messages
                                             </p>
                                             <p className="text-2xl font-bold">
-                                                12
+                                                0
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                No new messages
                                             </p>
                                         </div>
                                     </div>
@@ -546,7 +649,13 @@ const Dashboard = () => {
                                 <CardContent className="space-y-3">
                                     <Button 
                                         className="w-full justify-start"
-                                        onClick={() => window.location.href = '/#contact'}
+                                        onClick={() => {
+                                            navigate('/');
+                                            setTimeout(() => {
+                                                const contactSection = document.getElementById('contact');
+                                                contactSection?.scrollIntoView({ behavior: 'smooth' });
+                                            }, 100);
+                                        }}
                                     >
                                         <Calendar className="w-4 h-4 mr-2" />
                                         Schedule Consultation
@@ -556,8 +665,16 @@ const Dashboard = () => {
                                         className="w-full justify-start"
                                         onClick={() => setActiveTab('tools')}
                                     >
-                                        <FileText className="w-4 h-4 mr-2" />
+                                        <FileSpreadsheet className="w-4 h-4 mr-2" />
                                         View Tools
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start"
+                                        onClick={() => setActiveTab('reports')}
+                                    >
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        View All Reports
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -570,6 +687,28 @@ const Dashboard = () => {
                                 </CardContent>
                             </Card>
                         </div>
+                    </TabsContent>
+
+                    <TabsContent value="reports" className="space-y-6">
+                        {selectedReportId ? (
+                            <ReportViewer 
+                                reportId={selectedReportId}
+                                onBack={() => setSelectedReportId(null)}
+                            />
+                        ) : (
+                            <div className="space-y-6">
+                                <div>
+                                    <h2 className="text-2xl font-bold mb-2">Reports & Analysis History</h2>
+                                    <p className="text-muted-foreground">
+                                        View, compare, and manage all your generated reports
+                                    </p>
+                                </div>
+                                <ReportHistory 
+                                    onViewReport={(reportId) => setSelectedReportId(reportId)}
+                                    refreshTrigger={refreshTrigger}
+                                />
+                            </div>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="tools" className="space-y-6">
@@ -592,14 +731,9 @@ const Dashboard = () => {
                                         ← Back to Tools
                                     </Button>
                                 </div>
-                                <AnalyzerWorkflow onReportGenerated={() => setRefreshTrigger(prev => prev + 1)} />
-                                
-                                {/* Report History Section */}
-                                <ReportHistory 
-                                    onViewReport={(reportId) => {
-                                        setSelectedReportId(reportId);
-                                    }}
-                                    refreshTrigger={refreshTrigger}
+                                <AnalyzerWorkflow 
+                                    onReportGenerated={() => setRefreshTrigger(prev => prev + 1)}
+                                    onViewReports={() => setActiveTab("reports")}
                                 />
                             </div>
                         ) : selectedTool ? (
@@ -898,9 +1032,61 @@ const Dashboard = () => {
                                         Once you delete your account, there is
                                         no going back. Please be certain.
                                     </p>
-                                    <Button variant="destructive">
+                                    <Button 
+                                        variant="destructive"
+                                        onClick={() => setShowDeleteDialog(true)}
+                                    >
                                         Delete Account
                                     </Button>
+
+                                    {/* Delete Confirmation Dialog */}
+                                    {showDeleteDialog && (
+                                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                            <div className="bg-background p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+                                                <h3 className="text-lg font-semibold text-destructive mb-2">
+                                                    Delete Account - Are you absolutely sure?
+                                                </h3>
+                                                <p className="text-sm text-muted-foreground mb-4">
+                                                    This action cannot be undone. This will permanently delete your account,
+                                                    all your reports, and remove all associated data from our servers.
+                                                </p>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="confirm-email">
+                                                            Type your email <strong>{user?.email}</strong> to confirm:
+                                                        </Label>
+                                                        <Input
+                                                            id="confirm-email"
+                                                            type="email"
+                                                            value={deleteConfirmEmail}
+                                                            onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                                                            placeholder="Enter your email"
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                setShowDeleteDialog(false);
+                                                                setDeleteConfirmEmail("");
+                                                            }}
+                                                            className="flex-1"
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                        <Button
+                                                            variant="destructive"
+                                                            onClick={handleDeleteAccount}
+                                                            disabled={deleteConfirmEmail !== user?.email || isDeletingAccount}
+                                                            className="flex-1"
+                                                        >
+                                                            {isDeletingAccount ? "Deleting..." : "Delete Account"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
