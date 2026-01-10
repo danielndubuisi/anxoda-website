@@ -33,7 +33,7 @@ const tools: Tool[] = [
   },
   {
     id: "regional-mapper",
-    name: "Regional Client Mapper",
+    name: "Mapper",
     description: "Visualize your client distribution across regions with interactive maps",
     icon: MapPin,
     status: "coming-soon",
@@ -42,7 +42,7 @@ const tools: Tool[] = [
   },
   {
     id: "swot-analysis",
-    name: "SWOT Analysis",
+    name: "SWOT Genie",
     description: "Generate comprehensive SWOT analysis for strategic business planning",
     icon: Target,
     status: "coming-soon",
