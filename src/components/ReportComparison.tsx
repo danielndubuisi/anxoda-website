@@ -69,9 +69,17 @@ export const ReportComparison: React.FC<ReportComparisonProps> = ({
         }
     };
 
+    // Helper to ensure KPIs is an array
+    const ensureKPIsArray = (kpis: any): Array<{ label: string; value: string | number }> => {
+        if (Array.isArray(kpis)) {
+            return kpis.filter(kpi => kpi && typeof kpi === 'object' && kpi.label);
+        }
+        return [];
+    };
+
     const compareKPIs = () => {
-        const olderKPIs = olderReport.kpis || [];
-        const newerKPIs = newerReport.kpis || [];
+        const olderKPIs = ensureKPIsArray(olderReport.kpis);
+        const newerKPIs = ensureKPIsArray(newerReport.kpis);
 
         const comparisonMap = new Map<string, { old: number | null; new: number | null }>();
 
