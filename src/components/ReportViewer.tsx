@@ -38,10 +38,20 @@ import {
 } from "recharts";
 
 // Enhanced interface for structured AI analysis
+interface Prescription {
+    title: string;
+    action: string;
+    reason: string;
+    expectedOutcome: string;
+    priority: "high" | "medium" | "low";
+    effort: "low" | "medium" | "high";
+}
+
 interface AnalysisData {
     keyFindings: string[];
     additionalKPIs: string[];
-    recommendations: string[];
+    recommendations: string[]; // backward compatibility
+    prescriptions?: Prescription[]; // new structured format
 }
 
 interface ReportData {
@@ -288,6 +298,22 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
         }
     };
 
+    // Helper to ensure value is an array
+    const ensureArray = (value: any): string[] => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string") return [value];
+        return [];
+    };
+
+    // Helper to ensure prescriptions is an array of valid prescription objects
+    const ensurePrescriptionsArray = (value: any): Prescription[] | undefined => {
+        if (!value) return undefined;
+        if (!Array.isArray(value)) return undefined;
+        return value.filter((item: any) => 
+            item && typeof item === "object" && item.title && item.action
+        ) as Prescription[];
+    };
+
     const parseAnalysisData = (summary: Json): AnalysisData => {
         if (
             typeof summary === "object" &&
@@ -295,8 +321,14 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
             !Array.isArray(summary)
         ) {
             const obj = summary as any;
-            if (obj.keyFindings && obj.additionalKPIs && obj.recommendations) {
-                return obj as AnalysisData;
+            // Check for new prescriptions format or legacy recommendations
+            if (obj.keyFindings || obj.prescriptions || obj.recommendations) {
+                return {
+                    keyFindings: ensureArray(obj.keyFindings),
+                    additionalKPIs: ensureArray(obj.additionalKPIs || obj.dataQualityNotes),
+                    recommendations: ensureArray(obj.recommendations),
+                    prescriptions: ensurePrescriptionsArray(obj.prescriptions),
+                } as AnalysisData;
             }
         }
 
@@ -645,31 +677,76 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Lightbulb className="w-5 h-5" />
-                                Actionable Recommendations
+                                Actionable Prescriptions
                             </CardTitle>
                             <CardDescription>
-                                Data-driven suggestions to improve your business
-                                performance
+                                Specific actions you can take based on your data analysis
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {analysisData.recommendations.length > 0 ? (
-                                analysisData.recommendations.map(
-                                    (recommendation, index) => (
-                                        <div
-                                            key={index}
-                                            className="p-4 bg-accent/10 rounded-lg border border-accent/20">
-                                            <div className="flex items-start gap-3">
-                                                <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-sm font-medium mt-0.5">
+                        <CardContent className="space-y-6">
+                            {/* New Prescriptions Format */}
+                            {analysisData.prescriptions && analysisData.prescriptions.length > 0 ? (
+                                analysisData.prescriptions.map((prescription, index) => (
+                                    <div
+                                        key={index}
+                                        className="p-5 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl border border-primary/20 space-y-4">
+                                        {/* Header with title and badges */}
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                                <span className="w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
                                                     {index + 1}
-                                                </div>
-                                                <p className="text-sm leading-relaxed flex-1">
-                                                    {recommendation}
-                                                </p>
+                                                </span>
+                                                {prescription.title}
+                                            </h3>
+                                            <div className="flex gap-2">
+                                                <Badge 
+                                                    variant={prescription.priority === "high" ? "destructive" : prescription.priority === "medium" ? "default" : "secondary"}
+                                                    className="text-xs">
+                                                    {prescription.priority} priority
+                                                </Badge>
+                                                <Badge variant="outline" className="text-xs">
+                                                    {prescription.effort} effort
+                                                </Badge>
                                             </div>
                                         </div>
-                                    )
-                                )
+                                        
+                                        {/* What to do */}
+                                        <div className="bg-background/80 rounded-lg p-4 border-l-4 border-primary">
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">What to do</p>
+                                            <p className="text-sm leading-relaxed text-foreground">{prescription.action}</p>
+                                        </div>
+                                        
+                                        {/* Why it matters */}
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="bg-muted/50 rounded-lg p-4">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Why this matters</p>
+                                                <p className="text-sm leading-relaxed">{prescription.reason}</p>
+                                            </div>
+                                            
+                                            {/* Expected outcome */}
+                                            <div className="bg-accent/20 rounded-lg p-4">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Expected outcome</p>
+                                                <p className="text-sm leading-relaxed font-medium text-accent-foreground">{prescription.expectedOutcome}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : analysisData.recommendations.length > 0 ? (
+                                /* Fallback to legacy recommendations */
+                                analysisData.recommendations.map((recommendation, index) => (
+                                    <div
+                                        key={index}
+                                        className="p-4 bg-accent/10 rounded-lg border border-accent/20">
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-sm font-medium mt-0.5">
+                                                {index + 1}
+                                            </div>
+                                            <p className="text-sm leading-relaxed flex-1">
+                                                {recommendation}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
                             ) : (
                                 <div className="text-center py-8">
                                     <Lightbulb className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

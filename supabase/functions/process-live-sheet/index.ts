@@ -670,21 +670,53 @@ async function generateAIInsights(
       const prompt = [
         {
           role: 'system',
-          content: `You are a senior ${dataAnalysis.domain} analyst. Analyze the data and provide insights in JSON format:
+          content: `You are a senior business advisor who translates complex data into simple, actionable advice that any business owner can understand and implement immediately.
+
+YOUR ROLE:
+- Write like you're advising a business owner who doesn't understand analytics
+- Give SPECIFIC actions, not suggestions to "investigate" or "analyze"
+- Include exact numbers, percentages, and amounts from the data
+- Explain WHY each action matters and WHAT the expected outcome is
+- Use simple, direct language - avoid jargon
+
+RESPONSE FORMAT (JSON):
 {
-  "summary": "Executive summary with key insights",
-  "keyFindings": ["Finding 1 with metrics", "Finding 2", "Finding 3"],
-  "recommendations": ["Recommendation 1", "Recommendation 2", "Recommendation 3"],
-  "nextSteps": ["Step 1", "Step 2", "Step 3"]
+  "summary": "A 2-3 sentence explanation of the biggest opportunity or problem found, written for a non-technical reader",
+  "keyFindings": ["Finding with specific metric and business implication", "Another finding with quantified impact"],
+  "prescriptions": [
+    {
+      "title": "Short action title (e.g., 'Balance Employee Salaries')",
+      "action": "Exactly what to do - be specific and direct",
+      "reason": "Why this matters based on the data",
+      "expectedOutcome": "Quantified benefit or improvement expected",
+      "priority": "high/medium/low",
+      "effort": "low/medium/high"
+    }
+  ],
+  "recommendations": ["Same prescriptions written as simple sentences for display"],
+  "nextSteps": ["First immediate action to take", "Second action", "Third action"]
 }
-Use actual numbers and percentages from the data. Be specific and actionable.`
+
+PRESCRIPTION WRITING RULES:
+1. Start with the business impact: "The company can increase..." or "You can reduce..."
+2. Include specific numbers: "by 15%" or "by $50,000" not "significantly"
+3. Explain the "so what": Why should they care?
+4. Be prescriptive: "Do X to achieve Y" not "Consider doing X"
+5. Keep it simple: If a 10th grader can't understand it, rewrite it
+
+EXAMPLE PRESCRIPTIONS:
+- "The company can increase their compliance rating by balancing the average salary difference between male and female employees, which currently shows a gap of $12,500."
+- "You can reduce customer churn by 18% by focusing retention efforts on the 25-35 age group, who currently represent 40% of cancellations but only 15% of new signups."
+- "On data collection, 273 more samples of the industry salary rating could help improve the confidence level of the current average."`
         },
         {
           role: 'user', 
-          content: `Analyze this ${dataAnalysis.domain.toUpperCase()} dataset:
+          content: `Analyze this ${dataAnalysis.domain.toUpperCase()} dataset and provide PRESCRIPTIVE recommendations that a non-technical business owner can act on TODAY:
+
+Dataset Overview:
 - Records: ${dataAnalysis.totalRows.toLocaleString()}
 - Columns: ${dataAnalysis.totalColumns}
-- Domain confidence: ${dataAnalysis.domainConfidence}%
+- Domain: ${dataAnalysis.domain} (${dataAnalysis.domainConfidence}% confidence)
 
 Key Statistics:
 ${JSON.stringify(dataAnalysis.descriptiveStats, null, 2)}
@@ -697,7 +729,10 @@ Primary Metric: ${primaryMetrics?.column || 'N/A'} - Mean: ${primaryMetrics?.sta
 Sample Data (first 3 rows):
 ${JSON.stringify(dataRows.slice(0, 3), null, 2)}
 
-Provide executive-level insights with specific recommendations.`
+Remember: Your reader is busy and not technical. For each prescription, state:
+1. What to do (specific action)
+2. Why it matters (backed by data)
+3. What they'll gain (quantified outcome)`
         }
       ];
 
@@ -714,7 +749,7 @@ Provide executive-level insights with specific recommendations.`
           model: aiModel,
           messages: prompt,
           temperature: 0.1,
-          max_tokens: 1500,
+          max_tokens: 2000,
           response_format: { type: "json_object" }
         }),
         signal: controller.signal
@@ -739,11 +774,12 @@ Provide executive-level insights with specific recommendations.`
         if (content) {
           try {
             const parsed = JSON.parse(content);
-            if (parsed.summary && parsed.keyFindings && parsed.recommendations) {
+            if (parsed.summary && (parsed.prescriptions || parsed.keyFindings || parsed.recommendations)) {
               structuredSummary = {
-                keyFindings: parsed.keyFindings,
+                keyFindings: parsed.keyFindings || [],
                 additionalKPIs: parsed.nextSteps || [],
-                recommendations: parsed.recommendations
+                recommendations: parsed.recommendations || [],
+                prescriptions: parsed.prescriptions || []
               };
               console.log('AI insights generated successfully');
             }
