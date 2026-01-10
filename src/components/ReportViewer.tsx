@@ -298,6 +298,22 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
         }
     };
 
+    // Helper to ensure value is an array
+    const ensureArray = (value: any): string[] => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string") return [value];
+        return [];
+    };
+
+    // Helper to ensure prescriptions is an array of valid prescription objects
+    const ensurePrescriptionsArray = (value: any): Prescription[] | undefined => {
+        if (!value) return undefined;
+        if (!Array.isArray(value)) return undefined;
+        return value.filter((item: any) => 
+            item && typeof item === "object" && item.title && item.action
+        ) as Prescription[];
+    };
+
     const parseAnalysisData = (summary: Json): AnalysisData => {
         if (
             typeof summary === "object" &&
@@ -308,10 +324,10 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
             // Check for new prescriptions format or legacy recommendations
             if (obj.keyFindings || obj.prescriptions || obj.recommendations) {
                 return {
-                    keyFindings: obj.keyFindings || [],
-                    additionalKPIs: obj.additionalKPIs || obj.dataQualityNotes || [],
-                    recommendations: obj.recommendations || [],
-                    prescriptions: obj.prescriptions || undefined,
+                    keyFindings: ensureArray(obj.keyFindings),
+                    additionalKPIs: ensureArray(obj.additionalKPIs || obj.dataQualityNotes),
+                    recommendations: ensureArray(obj.recommendations),
+                    prescriptions: ensurePrescriptionsArray(obj.prescriptions),
                 } as AnalysisData;
             }
         }
