@@ -257,14 +257,9 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
         <CardContent className="p-6">
           {currentStep === 'upload' && (
             <div className="space-y-4">
-              <DataConnectionSelector 
-                onConnectionComplete={handleConnectionComplete} 
-                onViewReport={handleViewReport}
-              />
-              
-              {/* View Previous Reports Button */}
+              {/* View Previous Reports Button - At Top */}
               {onViewReports && (
-                <div className="pt-4 border-t">
+                <div className="pb-4 border-b">
                   <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                     <div>
                       <h4 className="font-medium text-sm mb-1">Already have reports?</h4>
@@ -283,6 +278,11 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
                   </div>
                 </div>
               )}
+              
+              <DataConnectionSelector 
+                onConnectionComplete={handleConnectionComplete} 
+                onViewReport={handleViewReport}
+              />
             </div>
           )}
 

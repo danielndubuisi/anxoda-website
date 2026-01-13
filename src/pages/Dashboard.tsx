@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import spreadsheetImage from "@/assets/spreadsheet-analyzer-demo.webp";
+import anxodaLogo from "@/assets/logo.webp";
 import { ReportList } from "@/components/ReportList";
 import { ReportViewer } from "@/components/ReportViewer";
 import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
@@ -336,8 +337,12 @@ const Dashboard = () => {
                 <div className="container mx-auto px-2 sm:px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-0">
                         <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
-                            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                <img 
+                                    src={anxodaLogo} 
+                                    alt="Anxoda Logo" 
+                                    className="w-full h-full object-contain"
+                                />
                             </div>
                             <div className="min-w-0">
                                 <h1 className="text-lg sm:text-xl font-bold truncate max-w-[140px] sm:max-w-none">
