@@ -147,9 +147,27 @@ serve(async (req: Request): Promise<Response> => {
           throw new Error('No data found in spreadsheet');
         }
 
-        // Normalize headers & rows
+        // Normalize headers & get raw rows
         const headers = (jsonData[0] as any[]).map((h, i) => (h ? String(h).trim() : `Column ${i+1}`));
-        const rawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+        const allRawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+        
+        const originalRowCount = allRawRows.length;
+        console.log(`Parsed ${originalRowCount} rows with ${headers.length} columns`);
+
+        // Sample EARLY to avoid CPU timeout - before expensive object conversion
+        const MAX_ROWS_FOR_ANALYSIS = 5000;
+        let rawRows = allRawRows;
+        let isSampled = false;
+
+        if (originalRowCount > MAX_ROWS_FOR_ANALYSIS) {
+          console.log(`Large dataset: ${originalRowCount} rows. Sampling ${MAX_ROWS_FOR_ANALYSIS} rows...`);
+          const sampledIndices = sampleDataIndices(originalRowCount, MAX_ROWS_FOR_ANALYSIS);
+          rawRows = sampledIndices.map(i => allRawRows[i]);
+          isSampled = true;
+          console.log(`Sampled ${rawRows.length} rows`);
+        }
+
+        // Convert only sampled rows to objects (expensive operation)
         const dataRows = rawRows.map(row => {
           const obj: Record<string, any> = {};
           for (let i = 0; i < headers.length; i++) {
@@ -158,31 +176,13 @@ serve(async (req: Request): Promise<Response> => {
           return obj;
         });
 
-        const originalRowCount = dataRows.length;
-        console.log(`Parsed ${originalRowCount} rows with ${headers.length} columns`);
-
-        // Sample large datasets to avoid CPU timeout
-        const MAX_ROWS_FOR_FULL_ANALYSIS = 10000;
-        let analysisDataRows = dataRows;
-        let analysisRawRows = rawRows;
-        let isSampled = false;
-
-        if (dataRows.length > MAX_ROWS_FOR_FULL_ANALYSIS) {
-          console.log(`Large dataset detected: ${dataRows.length} rows. Sampling ${MAX_ROWS_FOR_FULL_ANALYSIS} rows for analysis...`);
-          const sampledIndices = sampleDataIndices(dataRows.length, MAX_ROWS_FOR_FULL_ANALYSIS);
-          analysisDataRows = sampledIndices.map(i => dataRows[i]);
-          analysisRawRows = sampledIndices.map(i => rawRows[i]);
-          isSampled = true;
-          console.log(`Sampled ${analysisDataRows.length} rows using stratified sampling`);
-        }
-
-        // Analyze dataset (using sampled data if applicable)
-        const dataAnalysis = analyzeDataset(headers, analysisRawRows);
-        dataAnalysis.totalRows = originalRowCount; // Keep original count for reporting
+        // Analyze dataset
+        const dataAnalysis = analyzeDataset(headers, rawRows);
+        dataAnalysis.totalRows = originalRowCount;
         dataAnalysis.isSampled = isSampled;
-        dataAnalysis.sampledRows = analysisDataRows.length;
+        dataAnalysis.sampledRows = rawRows.length;
         
-        const chartData = generateIntelligentCharts(headers, analysisRawRows, dataAnalysis);
+        const chartData = generateIntelligentCharts(headers, rawRows, dataAnalysis);
 
         console.log(`Analysis complete: domain=${dataAnalysis.domain}, confidence=${dataAnalysis.domainConfidence}%`);
 
