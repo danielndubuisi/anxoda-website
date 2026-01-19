@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SpreadsheetUploader } from '@/components/SpreadsheetUploader';
 import { LiveSheetConnector } from '@/components/LiveSheetConnector';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -18,7 +19,10 @@ import {
   FileText,
   Clock,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  Pause,
+  Play
 } from 'lucide-react';
 
 export type ConnectionMethod = 'upload' | 'live_sheet' | 'database';
@@ -126,6 +130,38 @@ export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
       toast.error('Failed to start analysis', { description: error.message });
     } finally {
       setRunningAnalysis(null);
+    }
+  };
+
+  const handleToggleActive = async (connectionId: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('live_sheet_connections')
+        .update({ is_active: !isActive })
+        .eq('id', connectionId);
+
+      if (error) throw error;
+
+      toast.success(isActive ? 'Analysis paused' : 'Analysis resumed');
+      fetchExistingConnections();
+    } catch (error: any) {
+      toast.error('Failed to update connection', { description: error.message });
+    }
+  };
+
+  const handleDeleteConnection = async (connectionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('live_sheet_connections')
+        .delete()
+        .eq('id', connectionId);
+
+      if (error) throw error;
+
+      toast.success('Connection removed');
+      fetchExistingConnections();
+    } catch (error: any) {
+      toast.error('Failed to remove connection', { description: error.message });
     }
   };
 
@@ -237,166 +273,222 @@ export const DataConnectionSelector: React.FC<DataConnectionSelectorProps> = ({
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Connection Options
         </Button>
-        <LiveSheetConnector onConnectionComplete={handleLiveSheetConnected} />
+        <LiveSheetConnector 
+          onConnectionComplete={handleLiveSheetConnected}
+          onViewReport={onViewReport}
+        />
       </div>
     );
   }
 
   // Show connection method selection
   return (
-    <div className="space-y-6">
-      {/* Existing Connections Section */}
-      {!loadingConnections && existingConnections.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-primary" />
-            <h3 className="text-lg font-semibold">Your Connected Sheets</h3>
-            <Badge variant="secondary" className="ml-2">
-              {existingConnections.length}
-            </Badge>
-          </div>
-          
-          <div className="grid gap-3">
-            {existingConnections.map((connection) => (
-              <Card 
-                key={connection.id} 
-                className={`${connection.error_message ? 'border-destructive/50' : 'border-border'}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {getSheetIcon(connection.sheet_type)}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium truncate">{connection.sheet_name}</p>
-                          <Badge variant="outline" className="text-xs">
-                            {getFrequencyLabel(connection.schedule_frequency)}
-                          </Badge>
-                          {connection.report_count !== undefined && connection.report_count > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              {connection.report_count} report{connection.report_count !== 1 ? 's' : ''}
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* Existing Connections Section */}
+        {!loadingConnections && existingConnections.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">Your Connected Sheets</h3>
+              <Badge variant="secondary" className="ml-2">
+                {existingConnections.length}
+              </Badge>
+            </div>
+            
+            <div className="grid gap-3">
+              {existingConnections.map((connection) => (
+                <Card 
+                  key={connection.id} 
+                  className={`${connection.error_message ? 'border-destructive/50' : 'border-border'} ${!connection.is_active ? 'opacity-60' : ''}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {getSheetIcon(connection.sheet_type)}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium truncate">{connection.sheet_name}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {getFrequencyLabel(connection.schedule_frequency)}
                             </Badge>
-                          )}
-                          {!connection.is_active && (
-                            <Badge variant="destructive" className="text-xs">Inactive</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                          {connection.last_run_at && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Last run: {new Date(connection.last_run_at).toLocaleDateString()}
-                            </span>
-                          )}
-                          {connection.error_message && (
-                            <span className="flex items-center gap-1 text-destructive">
-                              <AlertCircle className="w-3 h-3" />
-                              Error: {connection.error_message.substring(0, 50)}...
-                            </span>
-                          )}
+                            {connection.report_count !== undefined && connection.report_count > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {connection.report_count} report{connection.report_count !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                            {!connection.is_active && (
+                              <Badge variant="destructive" className="text-xs">Paused</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                            {connection.last_run_at && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Last run: {new Date(connection.last_run_at).toLocaleDateString()}
+                              </span>
+                            )}
+                            {connection.error_message && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="flex items-center gap-1 text-destructive cursor-help">
+                                    <AlertCircle className="w-3 h-3" />
+                                    Error
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="max-w-xs">{connection.error_message}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 shrink-0">
-                      {connection.report_count !== undefined && connection.report_count > 0 && onViewReports && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => onViewReports(connection.id)}
-                        >
-                          <FileText className="w-4 h-4 mr-1" />
-                          View Reports
-                        </Button>
-                      )}
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => handleRunAnalysisNow(connection.id)}
-                        disabled={runningAnalysis === connection.id}
-                      >
-                        {runningAnalysis === connection.id ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                            Running...
-                          </>
-                        ) : (
-                          <>
-                            <PlayCircle className="w-4 h-4 mr-1" />
-                            Run Now
-                          </>
+                      
+                      <div className="flex items-center gap-1 shrink-0">
+                        {connection.report_count !== undefined && connection.report_count > 0 && onViewReports && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => onViewReports(connection.id)}
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                View Reports
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>View all reports for this connection</p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
-                      </Button>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="default" 
+                              size="icon"
+                              onClick={() => handleRunAnalysisNow(connection.id)}
+                              disabled={runningAnalysis === connection.id}
+                            >
+                              {runningAnalysis === connection.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <PlayCircle className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Run analysis now</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleToggleActive(connection.id, connection.is_active)}
+                            >
+                              {connection.is_active ? (
+                                <Pause className="w-4 h-4" />
+                              ) : (
+                                <Play className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{connection.is_active ? 'Pause scheduled analysis' : 'Resume scheduled analysis'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleDeleteConnection(connection.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Delete connection</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          <div className="border-t border-border pt-4 mt-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Connect a new data source
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="text-center">
-        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <FileSpreadsheet className="w-8 h-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold mb-2">Connect Your Data</h3>
-        <p className="text-muted-foreground">
-          Choose how you want to connect your data for AI-powered analysis
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {connectionMethods.map((method) => (
-          <Card 
-            key={method.id}
-            className={`relative cursor-pointer transition-all hover:shadow-md ${
-              method.available ? 'hover:border-primary' : 'opacity-60 cursor-not-allowed'
-            }`}
-            onClick={() => handleMethodSelect(method.id)}
-          >
-            {method.badge && (
-              <Badge 
-                variant="secondary" 
-                className="absolute top-3 right-3 text-xs"
-              >
-                {method.badge}
-              </Badge>
-            )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
             
-            <CardHeader>
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-3 border ${method.color}`}>
-                <method.icon className="w-6 h-6" />
-              </div>
-              <CardTitle className="text-lg">{method.title}</CardTitle>
-            </CardHeader>
-            
-            <CardContent>
-              <CardDescription className="mb-4">
-                {method.description}
-              </CardDescription>
+            <div className="border-t border-border pt-4 mt-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Connect a new data source
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="text-center">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileSpreadsheet className="w-8 h-8 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Connect Your Data</h3>
+          <p className="text-muted-foreground">
+            Choose how you want to connect your data for AI-powered analysis
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {connectionMethods.map((method) => (
+            <Card 
+              key={method.id}
+              className={`relative cursor-pointer transition-all hover:shadow-md ${
+                method.available ? 'hover:border-primary' : 'opacity-60 cursor-not-allowed'
+              }`}
+              onClick={() => handleMethodSelect(method.id)}
+            >
+              {method.badge && (
+                <Badge 
+                  variant="secondary" 
+                  className="absolute top-3 right-3 text-xs"
+                >
+                  {method.badge}
+                </Badge>
+              )}
               
-              <Button 
-                className="w-full"
-                variant={method.available ? 'default' : 'secondary'}
-                disabled={!method.available}
-              >
-                {method.available ? 'Select' : 'Not Available'}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <CardHeader>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-3 border ${method.color}`}>
+                  <method.icon className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-lg">{method.title}</CardTitle>
+              </CardHeader>
+              
+              <CardContent>
+                <CardDescription className="mb-4">
+                  {method.description}
+                </CardDescription>
+                
+                <Button 
+                  className="w-full"
+                  variant={method.available ? 'default' : 'secondary'}
+                  disabled={!method.available}
+                >
+                  {method.available ? 'Select' : 'Not Available'}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      <div className="text-center text-sm text-muted-foreground">
-        <p>More connection options coming soon. Need help? Contact support.</p>
+        <div className="text-center text-sm text-muted-foreground">
+          <p>More connection options coming soon. Need help? Contact support.</p>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };

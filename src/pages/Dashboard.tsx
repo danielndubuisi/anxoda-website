@@ -75,6 +75,7 @@ const Dashboard = () => {
     const [polling, setPolling] = useState(false);
     const [selectedTool, setSelectedTool] = useState<string | null>(null);
     const [reportCount, setReportCount] = useState<number>(0);
+    const [connectionCount, setConnectionCount] = useState<number>(0);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -134,6 +135,20 @@ const Dashboard = () => {
             setReportCount(count || 0);
         } catch (error) {
             console.error("Error fetching report count:", error);
+        }
+    }, [user]);
+
+    const fetchConnectionCount = useCallback(async () => {
+        try {
+            const { count, error } = await supabase
+                .from("live_sheet_connections")
+                .select("*", { count: "exact", head: true })
+                .eq("user_id", user?.id);
+
+            if (error) throw error;
+            setConnectionCount(count || 0);
+        } catch (error) {
+            console.error("Error fetching connection count:", error);
         }
     }, [user]);
 
@@ -226,14 +241,15 @@ const Dashboard = () => {
         }
     };
 
-    // Fetch profile, subscription, and report count on mount
+    // Fetch profile, subscription, report count, and connection count on mount
     useEffect(() => {
         if (user) {
             fetchProfile();
             fetchSubscription();
             fetchReportCount();
+            fetchConnectionCount();
         }
-    }, [user, fetchProfile, fetchSubscription, fetchReportCount]);
+    }, [user, fetchProfile, fetchSubscription, fetchReportCount, fetchConnectionCount]);
 
     const getPlanColor = (plan: string) => {
         switch (plan) {
@@ -728,7 +744,7 @@ const Dashboard = () => {
                         ) : selectedTool === "spreadsheet-analyzer" ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-2xl font-bold">Spreadsheet Analyzer</h2>
+                                    <h2 className="text-2xl font-bold">A.S.S</h2>
                                     <Button
                                         variant="outline"
                                         onClick={() => setSelectedTool(null)}
@@ -737,8 +753,12 @@ const Dashboard = () => {
                                     </Button>
                                 </div>
                                 <AnalyzerWorkflow 
-                                    onReportGenerated={() => setRefreshTrigger(prev => prev + 1)}
+                                    onReportGenerated={() => {
+                                        setRefreshTrigger(prev => prev + 1);
+                                        fetchConnectionCount();
+                                    }}
                                     onViewReports={() => setActiveTab("reports")}
+                                    hasExistingConnections={connectionCount > 0}
                                 />
                             </div>
                         ) : selectedTool ? (
