@@ -158,20 +158,40 @@ serve(async (req: Request): Promise<Response> => {
           return obj;
         });
 
-        console.log(`Parsed ${dataRows.length} rows with ${headers.length} columns`);
+        const originalRowCount = dataRows.length;
+        console.log(`Parsed ${originalRowCount} rows with ${headers.length} columns`);
 
-        // Analyze dataset
-        const dataAnalysis = analyzeDataset(headers, rawRows);
-        const chartData = generateIntelligentCharts(headers, rawRows, dataAnalysis);
+        // Sample large datasets to avoid CPU timeout
+        const MAX_ROWS_FOR_FULL_ANALYSIS = 10000;
+        let analysisDataRows = dataRows;
+        let analysisRawRows = rawRows;
+        let isSampled = false;
+
+        if (dataRows.length > MAX_ROWS_FOR_FULL_ANALYSIS) {
+          console.log(`Large dataset detected: ${dataRows.length} rows. Sampling ${MAX_ROWS_FOR_FULL_ANALYSIS} rows for analysis...`);
+          const sampledIndices = sampleDataIndices(dataRows.length, MAX_ROWS_FOR_FULL_ANALYSIS);
+          analysisDataRows = sampledIndices.map(i => dataRows[i]);
+          analysisRawRows = sampledIndices.map(i => rawRows[i]);
+          isSampled = true;
+          console.log(`Sampled ${analysisDataRows.length} rows using stratified sampling`);
+        }
+
+        // Analyze dataset (using sampled data if applicable)
+        const dataAnalysis = analyzeDataset(headers, analysisRawRows);
+        dataAnalysis.totalRows = originalRowCount; // Keep original count for reporting
+        dataAnalysis.isSampled = isSampled;
+        dataAnalysis.sampledRows = analysisDataRows.length;
+        
+        const chartData = generateIntelligentCharts(headers, analysisRawRows, dataAnalysis);
 
         console.log(`Analysis complete: domain=${dataAnalysis.domain}, confidence=${dataAnalysis.domainConfidence}%`);
 
-        // Generate AI insights
+        // Generate AI insights (using sampled data if applicable)
         const { structuredSummary, aiError } = await generateAIInsights(
           dataAnalysis,
           headers,
-          dataRows,
-          rawRows
+          analysisDataRows,
+          analysisRawRows
         );
 
         // Update report with analysis results
@@ -179,7 +199,7 @@ serve(async (req: Request): Promise<Response> => {
           .from("spreadsheet_reports")
           .update({
             processing_status: "completed",
-            row_count: dataRows.length,
+            row_count: originalRowCount,
             column_count: headers.length,
             chart_data: chartData,
             text_summary: structuredSummary,
@@ -188,7 +208,10 @@ serve(async (req: Request): Promise<Response> => {
               domainConfidence: dataAnalysis.domainConfidence,
               numericColumns: dataAnalysis.numeric.length,
               categoricalColumns: dataAnalysis.categorical.length,
-              descriptiveStats: dataAnalysis.descriptiveStats
+              descriptiveStats: dataAnalysis.descriptiveStats,
+              isSampled: isSampled,
+              sampledRows: isSampled ? analysisDataRows.length : null,
+              originalRowCount: originalRowCount
             },
             error_message: aiError || null,
             updated_at: new Date().toISOString()
@@ -308,6 +331,30 @@ function calculateNextRun(frequency: string): Date {
 
   next.setUTCHours(6, 0, 0, 0);
   return next;
+}
+
+// Stratified sampling to get representative data from large datasets
+function sampleDataIndices(totalRows: number, sampleSize: number): number[] {
+  if (totalRows <= sampleSize) {
+    return Array.from({ length: totalRows }, (_, i) => i);
+  }
+  
+  const indices: number[] = [];
+  const step = totalRows / sampleSize;
+  
+  // Use stratified sampling - take evenly spaced samples
+  for (let i = 0; i < sampleSize; i++) {
+    const index = Math.floor(i * step);
+    if (index < totalRows) {
+      indices.push(index);
+    }
+  }
+  
+  // Always include first and last rows for context
+  if (!indices.includes(0)) indices.unshift(0);
+  if (!indices.includes(totalRows - 1)) indices.push(totalRows - 1);
+  
+  return [...new Set(indices)].sort((a, b) => a - b);
 }
 
 // Enhanced data profiling and domain detection
@@ -714,7 +761,7 @@ EXAMPLE PRESCRIPTIONS:
           content: `Analyze this ${dataAnalysis.domain.toUpperCase()} dataset and provide PRESCRIPTIVE recommendations that a non-technical business owner can act on TODAY:
 
 Dataset Overview:
-- Records: ${dataAnalysis.totalRows.toLocaleString()}
+- Total Records: ${dataAnalysis.totalRows.toLocaleString()}${dataAnalysis.isSampled ? ` (analyzed using a representative sample of ${dataAnalysis.sampledRows.toLocaleString()} rows)` : ''}
 - Columns: ${dataAnalysis.totalColumns}
 - Domain: ${dataAnalysis.domain} (${dataAnalysis.domainConfidence}% confidence)
 
@@ -737,7 +784,7 @@ Remember: Your reader is busy and not technical. For each prescription, state:
       ];
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // Reduced timeout for CPU limits
 
       const resp = await fetch(aiEndpoint!, {
         method: 'POST',
