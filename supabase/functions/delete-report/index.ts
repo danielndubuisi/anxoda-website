@@ -90,10 +90,26 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in delete-report function:', error);
+    
+    // Map specific errors to user-friendly messages
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    let userMessage = 'An error occurred processing your request';
+    let statusCode = 400;
+    
+    if (errorMessage.includes('authorization') || errorMessage.includes('Authentication')) {
+      userMessage = 'Authentication required';
+      statusCode = 401;
+    } else if (errorMessage.includes('not found') || errorMessage.includes('access denied')) {
+      userMessage = 'Report not found or access denied';
+      statusCode = 404;
+    } else if (errorMessage.includes('Report ID')) {
+      userMessage = 'Invalid request parameters';
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: userMessage }),
       {
-        status: 400,
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
