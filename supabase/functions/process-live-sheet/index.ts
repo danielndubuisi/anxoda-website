@@ -190,8 +190,8 @@ serve(async (req: Request): Promise<Response> => {
         const { structuredSummary, aiError } = await generateAIInsights(
           dataAnalysis,
           headers,
-          analysisDataRows,
-          analysisRawRows
+          dataRows,
+          rawRows
         );
 
         // Update report with analysis results
@@ -210,7 +210,7 @@ serve(async (req: Request): Promise<Response> => {
               categoricalColumns: dataAnalysis.categorical.length,
               descriptiveStats: dataAnalysis.descriptiveStats,
               isSampled: isSampled,
-              sampledRows: isSampled ? analysisDataRows.length : null,
+              sampledRows: isSampled ? dataRows.length : null,
               originalRowCount: originalRowCount
             },
             error_message: aiError || null,
