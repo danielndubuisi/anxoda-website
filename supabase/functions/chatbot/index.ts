@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,11 +14,55 @@ serve(async (req) => {
   }
 
   try {
+    // Validate authentication
+    const authorization = req.headers.get('Authorization');
+    if (!authorization) {
+      console.error('Chatbot: No authorization header provided');
+      return new Response(JSON.stringify({ 
+        error: "unauthorized",
+        message: "Authentication required" 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Initialize Supabase client and verify user
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authorization } }
+    });
+
+    const token = authorization.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('Chatbot: Invalid token or claims', claimsError);
+      return new Response(JSON.stringify({ 
+        error: "unauthorized",
+        message: "Invalid or expired session" 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`Chatbot request from user: ${userId}`);
+
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("Chatbot: LOVABLE_API_KEY is not configured");
+      return new Response(JSON.stringify({ 
+        error: "service_unavailable",
+        message: "Service temporarily unavailable" 
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Received chatbot request with", messages?.length || 0, "messages");
@@ -98,7 +143,14 @@ serve(async (req) => {
         });
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Generic error for other AI gateway issues
+      return new Response(JSON.stringify({ 
+        error: "service_error",
+        message: "Unable to process request. Please try again." 
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Stream the response back to client
@@ -107,9 +159,10 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Chatbot error:", error);
+    // Return generic error message to client, log details server-side
     return new Response(JSON.stringify({ 
       error: "internal_error",
-      message: error instanceof Error ? error.message : "An error occurred" 
+      message: "An error occurred processing your request" 
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

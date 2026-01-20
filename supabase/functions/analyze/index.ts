@@ -159,6 +159,20 @@ serve(async (req) => {
 
   } catch (e) {
     console.error('Error in analyze function:', e);
-    return badRequest(`Unhandled error: ${e instanceof Error ? e.message : String(e)}`, 500);
+    
+    // Map errors to user-friendly messages
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    let userMessage = 'An error occurred processing your request';
+    let statusCode = 500;
+    
+    if (errorMessage.includes('authorization') || errorMessage.includes('Authentication')) {
+      userMessage = 'Authentication required';
+      statusCode = 401;
+    } else if (errorMessage.includes('Missing required fields')) {
+      userMessage = 'Invalid request parameters';
+      statusCode = 400;
+    }
+    
+    return badRequest(userMessage, statusCode);
   }
 });
