@@ -155,13 +155,27 @@ serve(async (req: Request): Promise<Response> => {
         console.log(`Parsed ${originalRowCount} rows with ${headers.length} columns`);
 
         // Sample EARLY to avoid CPU timeout - before expensive object conversion
-        const MAX_ROWS_FOR_ANALYSIS = 5000;
+        // Use more aggressive sampling for very large datasets to prevent CPU timeout
+        const VERY_LARGE_THRESHOLD = 25000;
+        const LARGE_THRESHOLD = 1000;
+        const VERY_LARGE_SAMPLE_SIZE = 2500;
+        const NORMAL_SAMPLE_SIZE = 5000;
+        
         let rawRows = allRawRows;
         let isSampled = false;
+        let sampleSize = 0;
 
-        if (originalRowCount > MAX_ROWS_FOR_ANALYSIS) {
-          console.log(`Large dataset: ${originalRowCount} rows. Sampling ${MAX_ROWS_FOR_ANALYSIS} rows...`);
-          const sampledIndices = sampleDataIndices(originalRowCount, MAX_ROWS_FOR_ANALYSIS);
+        if (originalRowCount > VERY_LARGE_THRESHOLD) {
+          sampleSize = VERY_LARGE_SAMPLE_SIZE;
+          console.log(`Very large dataset: ${originalRowCount} rows. Using reduced sample of ${sampleSize} rows to prevent timeout...`);
+          const sampledIndices = sampleDataIndices(originalRowCount, sampleSize);
+          rawRows = sampledIndices.map(i => allRawRows[i]);
+          isSampled = true;
+          console.log(`Sampled ${rawRows.length} rows`);
+        } else if (originalRowCount > LARGE_THRESHOLD) {
+          sampleSize = NORMAL_SAMPLE_SIZE;
+          console.log(`Large dataset: ${originalRowCount} rows. Sampling ${sampleSize} rows...`);
+          const sampledIndices = sampleDataIndices(originalRowCount, sampleSize);
           rawRows = sampledIndices.map(i => allRawRows[i]);
           isSampled = true;
           console.log(`Sampled ${rawRows.length} rows`);
@@ -784,7 +798,7 @@ Remember: Your reader is busy and not technical. For each prescription, state:
       ];
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // Reduced timeout for CPU limits
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // Aggressive timeout to prevent CPU limit
 
       const resp = await fetch(aiEndpoint!, {
         method: 'POST',
