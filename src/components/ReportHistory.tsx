@@ -14,6 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -382,18 +393,39 @@ export const ReportHistory: React.FC<ReportHistoryProps> = ({
                                             </Button>
                                         )}
 
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => deleteReport(report.id)}
-                                            disabled={deleting === report.id}
-                                            className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only sm:not-sr-only sm:ml-2">
-                                                Delete
-                                            </span>
-                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={deleting === report.id}
+                                                    className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span className="sr-only sm:not-sr-only sm:ml-2">
+                                                        Delete
+                                                    </span>
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Delete Report?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently delete "{report.title}" and all its analysis data. 
+                                                        This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => deleteReport(report.id)}
+                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                    >
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 </div>
                             </div>
