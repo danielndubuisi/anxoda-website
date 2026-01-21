@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,43 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    // Validate authentication
-    const authorization = req.headers.get('Authorization');
-    if (!authorization) {
-      console.error('Chatbot: No authorization header provided');
-      return new Response(JSON.stringify({ 
-        error: "unauthorized",
-        message: "Authentication required" 
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Initialize Supabase client and verify user
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authorization } }
-    });
-
-    const token = authorization.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      console.error('Chatbot: Invalid token or claims', claimsError);
-      return new Response(JSON.stringify({ 
-        error: "unauthorized",
-        message: "Invalid or expired session" 
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = claimsData.claims.sub;
-    console.log(`Chatbot request from user: ${userId}`);
-
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
