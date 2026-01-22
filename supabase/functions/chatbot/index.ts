@@ -17,7 +17,14 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("Chatbot: LOVABLE_API_KEY is not configured");
+      return new Response(JSON.stringify({ 
+        error: "service_unavailable",
+        message: "Service temporarily unavailable" 
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Received chatbot request with", messages?.length || 0, "messages");
@@ -98,7 +105,14 @@ serve(async (req) => {
         });
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Generic error for other AI gateway issues
+      return new Response(JSON.stringify({ 
+        error: "service_error",
+        message: "Unable to process request. Please try again." 
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Stream the response back to client
@@ -107,9 +121,10 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Chatbot error:", error);
+    // Return generic error message to client, log details server-side
     return new Response(JSON.stringify({ 
       error: "internal_error",
-      message: error instanceof Error ? error.message : "An error occurred" 
+      message: "An error occurred processing your request" 
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -147,9 +147,41 @@ serve(async (req: Request): Promise<Response> => {
           throw new Error('No data found in spreadsheet');
         }
 
-        // Normalize headers & rows
+        // Normalize headers & get raw rows
         const headers = (jsonData[0] as any[]).map((h, i) => (h ? String(h).trim() : `Column ${i+1}`));
-        const rawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+        const allRawRows = jsonData.slice(1).filter((r: any[]) => r && r.some((c: any) => c != null && c !== ''));
+        
+        const originalRowCount = allRawRows.length;
+        console.log(`Parsed ${originalRowCount} rows with ${headers.length} columns`);
+
+        // Sample EARLY to avoid CPU timeout - before expensive object conversion
+        // Use more aggressive sampling for very large datasets to prevent CPU timeout
+        const VERY_LARGE_THRESHOLD = 25000;
+        const LARGE_THRESHOLD = 1000;
+        const VERY_LARGE_SAMPLE_SIZE = 2500;
+        const NORMAL_SAMPLE_SIZE = 5000;
+        
+        let rawRows = allRawRows;
+        let isSampled = false;
+        let sampleSize = 0;
+
+        if (originalRowCount > VERY_LARGE_THRESHOLD) {
+          sampleSize = VERY_LARGE_SAMPLE_SIZE;
+          console.log(`Very large dataset: ${originalRowCount} rows. Using reduced sample of ${sampleSize} rows to prevent timeout...`);
+          const sampledIndices = sampleDataIndices(originalRowCount, sampleSize);
+          rawRows = sampledIndices.map(i => allRawRows[i]);
+          isSampled = true;
+          console.log(`Sampled ${rawRows.length} rows`);
+        } else if (originalRowCount > LARGE_THRESHOLD) {
+          sampleSize = NORMAL_SAMPLE_SIZE;
+          console.log(`Large dataset: ${originalRowCount} rows. Sampling ${sampleSize} rows...`);
+          const sampledIndices = sampleDataIndices(originalRowCount, sampleSize);
+          rawRows = sampledIndices.map(i => allRawRows[i]);
+          isSampled = true;
+          console.log(`Sampled ${rawRows.length} rows`);
+        }
+
+        // Convert only sampled rows to objects (expensive operation)
         const dataRows = rawRows.map(row => {
           const obj: Record<string, any> = {};
           for (let i = 0; i < headers.length; i++) {
@@ -158,15 +190,17 @@ serve(async (req: Request): Promise<Response> => {
           return obj;
         });
 
-        console.log(`Parsed ${dataRows.length} rows with ${headers.length} columns`);
-
         // Analyze dataset
         const dataAnalysis = analyzeDataset(headers, rawRows);
+        dataAnalysis.totalRows = originalRowCount;
+        dataAnalysis.isSampled = isSampled;
+        dataAnalysis.sampledRows = rawRows.length;
+        
         const chartData = generateIntelligentCharts(headers, rawRows, dataAnalysis);
 
         console.log(`Analysis complete: domain=${dataAnalysis.domain}, confidence=${dataAnalysis.domainConfidence}%`);
 
-        // Generate AI insights
+        // Generate AI insights (using sampled data if applicable)
         const { structuredSummary, aiError } = await generateAIInsights(
           dataAnalysis,
           headers,
@@ -179,7 +213,7 @@ serve(async (req: Request): Promise<Response> => {
           .from("spreadsheet_reports")
           .update({
             processing_status: "completed",
-            row_count: dataRows.length,
+            row_count: originalRowCount,
             column_count: headers.length,
             chart_data: chartData,
             text_summary: structuredSummary,
@@ -188,7 +222,10 @@ serve(async (req: Request): Promise<Response> => {
               domainConfidence: dataAnalysis.domainConfidence,
               numericColumns: dataAnalysis.numeric.length,
               categoricalColumns: dataAnalysis.categorical.length,
-              descriptiveStats: dataAnalysis.descriptiveStats
+              descriptiveStats: dataAnalysis.descriptiveStats,
+              isSampled: isSampled,
+              sampledRows: isSampled ? dataRows.length : null,
+              originalRowCount: originalRowCount
             },
             error_message: aiError || null,
             updated_at: new Date().toISOString()
@@ -308,6 +345,30 @@ function calculateNextRun(frequency: string): Date {
 
   next.setUTCHours(6, 0, 0, 0);
   return next;
+}
+
+// Stratified sampling to get representative data from large datasets
+function sampleDataIndices(totalRows: number, sampleSize: number): number[] {
+  if (totalRows <= sampleSize) {
+    return Array.from({ length: totalRows }, (_, i) => i);
+  }
+  
+  const indices: number[] = [];
+  const step = totalRows / sampleSize;
+  
+  // Use stratified sampling - take evenly spaced samples
+  for (let i = 0; i < sampleSize; i++) {
+    const index = Math.floor(i * step);
+    if (index < totalRows) {
+      indices.push(index);
+    }
+  }
+  
+  // Always include first and last rows for context
+  if (!indices.includes(0)) indices.unshift(0);
+  if (!indices.includes(totalRows - 1)) indices.push(totalRows - 1);
+  
+  return [...new Set(indices)].sort((a, b) => a - b);
 }
 
 // Enhanced data profiling and domain detection
@@ -714,7 +775,7 @@ EXAMPLE PRESCRIPTIONS:
           content: `Analyze this ${dataAnalysis.domain.toUpperCase()} dataset and provide PRESCRIPTIVE recommendations that a non-technical business owner can act on TODAY:
 
 Dataset Overview:
-- Records: ${dataAnalysis.totalRows.toLocaleString()}
+- Total Records: ${dataAnalysis.totalRows.toLocaleString()}${dataAnalysis.isSampled ? ` (analyzed using a representative sample of ${dataAnalysis.sampledRows.toLocaleString()} rows)` : ''}
 - Columns: ${dataAnalysis.totalColumns}
 - Domain: ${dataAnalysis.domain} (${dataAnalysis.domainConfidence}% confidence)
 
@@ -737,7 +798,7 @@ Remember: Your reader is busy and not technical. For each prescription, state:
       ];
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // Aggressive timeout to prevent CPU limit
 
       const resp = await fetch(aiEndpoint!, {
         method: 'POST',

@@ -115,10 +115,29 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in process-spreadsheet function:', error);
+    
+    // Map errors to user-friendly messages
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    let userMessage = 'An error occurred processing your request';
+    let statusCode = 400;
+    
+    if (errorMessage.includes('authorization') || errorMessage.includes('Authentication')) {
+      userMessage = 'Authentication required';
+      statusCode = 401;
+    } else if (errorMessage.includes('Invalid file type')) {
+      userMessage = 'Invalid file type. Only CSV and Excel files are allowed.';
+    } else if (errorMessage.includes('File and filename')) {
+      userMessage = 'Please select a file to upload';
+    } else if (errorMessage.includes('Failed to upload')) {
+      userMessage = 'Failed to upload file. Please try again.';
+    } else if (errorMessage.includes('Failed to create')) {
+      userMessage = 'Failed to create report. Please try again.';
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: userMessage }),
       {
-        status: 400,
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

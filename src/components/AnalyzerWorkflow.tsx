@@ -22,11 +22,16 @@ import {
 interface AnalyzerWorkflowProps {
   onReportGenerated?: () => void;
   onViewReports?: () => void;
+  hasExistingConnections?: boolean;
 }
 
 type WorkflowStep = 'upload' | 'question' | 'processing' | 'results';
 
-export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGenerated, onViewReports }) => {
+export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ 
+  onReportGenerated, 
+  onViewReports,
+  hasExistingConnections = false
+}) => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
@@ -201,6 +206,41 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
     }
   };
 
+  // If user has existing connections and is on upload step, just show the DataConnectionSelector
+  // without the workflow card wrapper
+  if (hasExistingConnections && currentStep === 'upload') {
+    return (
+      <div className="space-y-6">
+        {/* View Previous Reports Button - At Top */}
+        {onViewReports && (
+          <div className="pb-4 border-b">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <h4 className="font-medium text-sm mb-1">Already have reports?</h4>
+                <p className="text-xs text-muted-foreground">
+                  View and compare your previous analysis
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={onViewReports}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                View Reports
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        <DataConnectionSelector 
+          onConnectionComplete={handleConnectionComplete} 
+          onViewReport={handleViewReport}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Progress Indicator */}
@@ -257,14 +297,9 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
         <CardContent className="p-6">
           {currentStep === 'upload' && (
             <div className="space-y-4">
-              <DataConnectionSelector 
-                onConnectionComplete={handleConnectionComplete} 
-                onViewReport={handleViewReport}
-              />
-              
-              {/* View Previous Reports Button */}
+              {/* View Previous Reports Button - At Top */}
               {onViewReports && (
-                <div className="pt-4 border-t">
+                <div className="pb-4 border-b">
                   <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                     <div>
                       <h4 className="font-medium text-sm mb-1">Already have reports?</h4>
@@ -283,6 +318,11 @@ export const AnalyzerWorkflow: React.FC<AnalyzerWorkflowProps> = ({ onReportGene
                   </div>
                 </div>
               )}
+              
+              <DataConnectionSelector 
+                onConnectionComplete={handleConnectionComplete} 
+                onViewReport={handleViewReport}
+              />
             </div>
           )}
 

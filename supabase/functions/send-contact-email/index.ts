@@ -172,9 +172,30 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("send-contact-email: error", error);
+    
+    // Map specific validation errors to user-friendly messages
+    const errorMessage = error?.message || String(error);
+    let userMessage = 'Unable to submit your message. Please try again.';
+    let statusCode = 500;
+    
+    // Keep validation errors user-friendly (they don't expose internals)
+    if (errorMessage.includes('Missing required fields')) {
+      userMessage = 'Please provide your name, email, and message';
+      statusCode = 400;
+    } else if (errorMessage.includes('less than')) {
+      userMessage = errorMessage; // Length validation messages are safe
+      statusCode = 400;
+    } else if (errorMessage.includes('Invalid email')) {
+      userMessage = 'Please provide a valid email address';
+      statusCode = 400;
+    } else if (errorMessage.includes('RESEND_API_KEY')) {
+      userMessage = 'Email service temporarily unavailable';
+      statusCode = 503;
+    }
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ success: false, error: userMessage }),
+      { status: statusCode, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
