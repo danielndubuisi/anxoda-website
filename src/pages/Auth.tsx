@@ -158,40 +158,51 @@ const Auth = () => {
 
                                     <Button
                                         type="submit"
-                                        className="w-full"
+                                        className="w-full h-11"
                                         disabled={isLoading}>
                                         {isLoading
                                             ? "Signing in..."
                                             : "Sign In"}
                                     </Button>
-                                    <div className="mt-6 flex flex-col items-center">
-                                        <button
-                                            type="button"
-                                            onClick={signInWithGoogle}
-                                            className="w-full max-w-xs flex items-center justify-center gap-2 py-2 px-4 rounded-md border border-border bg-background hover:bg-primary/10 text-foreground font-medium shadow-sm transition-colors">
-                                            <svg
-                                                className="w-5 h-5"
-                                                viewBox="0 0 24 24">
-                                                <path
-                                                    fill="#EA4335"
-                                                    d="M12 11.7v2.6h7.4c-.3 1.7-2 5-7.4 5-4.4 0-8-3.6-8-8s3.6-8 8-8c2.5 0 4.2.9 5.2 1.7l-2.1 2.1C14.2 6.7 13.2 6.3 12 6.3c-3.2 0-5.7 2.6-5.7 5.7s2.6 5.7 5.7 5.7c3.3 0 4.5-2.3 4.7-3.5H12z"
-                                                />
-                                                <path
-                                                    fill="#34A853"
-                                                    d="M3.3 7.7l2.3 1.7C6.4 8.1 7.9 6.3 12 6.3c1.2 0 2.2.4 3 .9l2.1-2.1C15.2 3.9 13.5 3 12 3 7.6 3 4 6.6 4 11c0 1.6.4 3.1 1.3 4.3l2.3-1.7C6.7 12.7 6.3 11.9 6.3 11c0-.9.4-1.7 1-2.3z"
-                                                />
-                                                <path
-                                                    fill="#FBBC05"
-                                                    d="M12 21c1.5 0 2.9-.5 4-1.3l-2.1-2.1c-.8.5-1.8.8-2.9.8-3.2 0-5.7-2.6-5.7-5.7 0-.9.2-1.7.5-2.4l-2.3-1.7C3.1 8.9 3 9.9 3 11c0 4.4 3.6 8 8 8z"
-                                                />
-                                                <path
-                                                    fill="#4285F4"
-                                                    d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v2.6h5.7c-.2 1.1-.9 2.1-1.8 2.7l2.1 1.7c1.2-1.1 1.9-2.7 1.9-4.9z"
-                                                />
-                                            </svg>
-                                            Continue with Google
-                                        </button>
+
+                                    {/* OR Divider */}
+                                    <div className="relative my-4">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <span className="w-full border-t border-muted" />
+                                        </div>
+                                        <div className="relative flex justify-center text-xs uppercase">
+                                            <span className="bg-background px-2 text-muted-foreground">Or</span>
+                                        </div>
                                     </div>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full h-11"
+                                        onClick={signInWithGoogle}
+                                    >
+                                        <svg
+                                            className="w-5 h-5 mr-2"
+                                            viewBox="0 0 24 24">
+                                            <path
+                                                fill="#EA4335"
+                                                d="M12 11.7v2.6h7.4c-.3 1.7-2 5-7.4 5-4.4 0-8-3.6-8-8s3.6-8 8-8c2.5 0 4.2.9 5.2 1.7l-2.1 2.1C14.2 6.7 13.2 6.3 12 6.3c-3.2 0-5.7 2.6-5.7 5.7s2.6 5.7 5.7 5.7c3.3 0 4.5-2.3 4.7-3.5H12z"
+                                            />
+                                            <path
+                                                fill="#34A853"
+                                                d="M3.3 7.7l2.3 1.7C6.4 8.1 7.9 6.3 12 6.3c1.2 0 2.2.4 3 .9l2.1-2.1C15.2 3.9 13.5 3 12 3 7.6 3 4 6.6 4 11c0 1.6.4 3.1 1.3 4.3l2.3-1.7C6.7 12.7 6.3 11.9 6.3 11c0-.9.4-1.7 1-2.3z"
+                                            />
+                                            <path
+                                                fill="#FBBC05"
+                                                d="M12 21c1.5 0 2.9-.5 4-1.3l-2.1-2.1c-.8.5-1.8.8-2.9.8-3.2 0-5.7-2.6-5.7-5.7 0-.9.2-1.7.5-2.4l-2.3-1.7C3.1 8.9 3 9.9 3 11c0 4.4 3.6 8 8 8z"
+                                            />
+                                            <path
+                                                fill="#4285F4"
+                                                d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v2.6h5.7c-.2 1.1-.9 2.1-1.8 2.7l2.1 1.7c1.2-1.1 1.9-2.7 1.9-4.9z"
+                                            />
+                                        </svg>
+                                        Continue with Google
+                                    </Button>
                                 </form>
                             </TabsContent>
 
@@ -297,40 +308,51 @@ const Auth = () => {
 
                                     <Button
                                         type="submit"
-                                        className="w-full"
+                                        className="w-full h-11"
                                         disabled={isLoading}>
                                         {isLoading
                                             ? "Creating account..."
                                             : "Create Account"}
                                     </Button>
-                                    <div className="mt-6 flex flex-col items-center">
-                                        <button
-                                            type="button"
-                                            onClick={signInWithGoogle}
-                                            className="w-full max-w-xs flex items-center justify-center gap-2 py-2 px-4 rounded-md border border-border bg-background hover:bg-primary/10 text-foreground font-medium shadow-sm transition-colors">
-                                            <svg
-                                                className="w-5 h-5"
-                                                viewBox="0 0 24 24">
-                                                <path
-                                                    fill="#EA4335"
-                                                    d="M12 11.7v2.6h7.4c-.3 1.7-2 5-7.4 5-4.4 0-8-3.6-8-8s3.6-8 8-8c2.5 0 4.2.9 5.2 1.7l-2.1 2.1C14.2 6.7 13.2 6.3 12 6.3c-3.2 0-5.7 2.6-5.7 5.7s2.6 5.7 5.7 5.7c3.3 0 4.5-2.3 4.7-3.5H12z"
-                                                />
-                                                <path
-                                                    fill="#34A853"
-                                                    d="M3.3 7.7l2.3 1.7C6.4 8.1 7.9 6.3 12 6.3c1.2 0 2.2.4 3 .9l2.1-2.1C15.2 3.9 13.5 3 12 3 7.6 3 4 6.6 4 11c0 1.6.4 3.1 1.3 4.3l2.3-1.7C6.7 12.7 6.3 11.9 6.3 11c0-.9.4-1.7 1-2.3z"
-                                                />
-                                                <path
-                                                    fill="#FBBC05"
-                                                    d="M12 21c1.5 0 2.9-.5 4-1.3l-2.1-2.1c-.8.5-1.8.8-2.9.8-3.2 0-5.7-2.6-5.7-5.7 0-.9.2-1.7.5-2.4l-2.3-1.7C3.1 8.9 3 9.9 3 11c0 4.4 3.6 8 8 8z"
-                                                />
-                                                <path
-                                                    fill="#4285F4"
-                                                    d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v2.6h5.7c-.2 1.1-.9 2.1-1.8 2.7l2.1 1.7c1.2-1.1 1.9-2.7 1.9-4.9z"
-                                                />
-                                            </svg>
-                                            Continue with Google
-                                        </button>
+
+                                    {/* OR Divider */}
+                                    <div className="relative my-4">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <span className="w-full border-t border-muted" />
+                                        </div>
+                                        <div className="relative flex justify-center text-xs uppercase">
+                                            <span className="bg-background px-2 text-muted-foreground">Or</span>
+                                        </div>
                                     </div>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full h-11"
+                                        onClick={signInWithGoogle}
+                                    >
+                                        <svg
+                                            className="w-5 h-5 mr-2"
+                                            viewBox="0 0 24 24">
+                                            <path
+                                                fill="#EA4335"
+                                                d="M12 11.7v2.6h7.4c-.3 1.7-2 5-7.4 5-4.4 0-8-3.6-8-8s3.6-8 8-8c2.5 0 4.2.9 5.2 1.7l-2.1 2.1C14.2 6.7 13.2 6.3 12 6.3c-3.2 0-5.7 2.6-5.7 5.7s2.6 5.7 5.7 5.7c3.3 0 4.5-2.3 4.7-3.5H12z"
+                                            />
+                                            <path
+                                                fill="#34A853"
+                                                d="M3.3 7.7l2.3 1.7C6.4 8.1 7.9 6.3 12 6.3c1.2 0 2.2.4 3 .9l2.1-2.1C15.2 3.9 13.5 3 12 3 7.6 3 4 6.6 4 11c0 1.6.4 3.1 1.3 4.3l2.3-1.7C6.7 12.7 6.3 11.9 6.3 11c0-.9.4-1.7 1-2.3z"
+                                            />
+                                            <path
+                                                fill="#FBBC05"
+                                                d="M12 21c1.5 0 2.9-.5 4-1.3l-2.1-2.1c-.8.5-1.8.8-2.9.8-3.2 0-5.7-2.6-5.7-5.7 0-.9.2-1.7.5-2.4l-2.3-1.7C3.1 8.9 3 9.9 3 11c0 4.4 3.6 8 8 8z"
+                                            />
+                                            <path
+                                                fill="#4285F4"
+                                                d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v2.6h5.7c-.2 1.1-.9 2.1-1.8 2.7l2.1 1.7c1.2-1.1 1.9-2.7 1.9-4.9z"
+                                            />
+                                        </svg>
+                                        Continue with Google
+                                    </Button>
                                 </form>
                             </TabsContent>
                         </Tabs>
