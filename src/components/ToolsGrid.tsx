@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileSpreadsheet, TrendingUp, MapPin, Target } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { FileSpreadsheet, TrendingUp, MapPin, Target, Clock } from "lucide-react";
 
 interface Tool {
   id: string;
@@ -57,8 +59,17 @@ interface ToolsGridProps {
 }
 
 export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
+  const [selectedComingSoon, setSelectedComingSoon] = useState<Tool | null>(null);
   const activeTools = tools.filter((t) => t.status === "active");
   const comingSoonTools = tools.filter((t) => t.status === "coming-soon");
+
+  const handleToolClick = (tool: Tool) => {
+    if (tool.status === "active") {
+      onToolSelect(tool.id);
+    } else {
+      setSelectedComingSoon(tool);
+    }
+  };
 
   const renderCard = (tool: Tool, dimmed = false) => {
     const Icon = tool.icon;
@@ -66,7 +77,7 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
       <Card
         key={tool.id}
         className={`group relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-border bg-card ${dimmed ? "opacity-70 hover:opacity-100" : ""}`}
-        onClick={() => onToolSelect(tool.id)}
+        onClick={() => handleToolClick(tool)}
       >
         <div
           className={`absolute inset-0 bg-gradient-to-br ${tool.gradientFrom} ${tool.gradientTo} opacity-5 group-hover:opacity-10 transition-opacity duration-300`}
@@ -207,6 +218,34 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
           {comingSoonTools.map((tool) => renderCard(tool, true))}
         </div>
       </div>
+
+      {/* Coming Soon Modal */}
+      <Dialog open={!!selectedComingSoon} onOpenChange={(open) => !open && setSelectedComingSoon(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selectedComingSoon && (() => {
+            const Icon = selectedComingSoon.icon;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-md bg-gradient-to-br ${selectedComingSoon.gradientFrom} ${selectedComingSoon.gradientTo} shadow-md`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <DialogTitle className="text-lg">{selectedComingSoon.name}</DialogTitle>
+                  </div>
+                  <DialogDescription>{selectedComingSoon.description}</DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border/50">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    This tool is currently under development. Stay tuned for updates!
+                  </p>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
