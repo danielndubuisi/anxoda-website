@@ -71,12 +71,12 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
         <div
           className={`absolute inset-0 bg-gradient-to-br ${tool.gradientFrom} ${tool.gradientTo} opacity-5 group-hover:opacity-10 transition-opacity duration-300`}
         />
-        <CardHeader className="relative">
+        <CardHeader className="relative p-4 pb-2">
           <div className="flex items-start justify-between">
             <div
-              className={`p-3 rounded-lg bg-gradient-to-br ${tool.gradientFrom} ${tool.gradientTo} shadow-lg`}
+              className={`p-2 rounded-md bg-gradient-to-br ${tool.gradientFrom} ${tool.gradientTo} shadow-md`}
             >
-              <Icon className="h-6 w-6 text-white" />
+              <Icon className="h-4 w-4 text-white" />
             </div>
             <Badge
               variant={tool.status === "active" ? "default" : "secondary"}
@@ -89,15 +89,15 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
               {tool.status === "active" ? "Active" : "Coming Soon"}
             </Badge>
           </div>
-          <CardTitle className="text-xl font-semibold text-foreground mt-4">
+          <CardTitle className="text-base font-semibold text-foreground mt-3">
             {tool.name}
           </CardTitle>
         </CardHeader>
-        <CardContent className="relative">
-          <p className="text-muted-foreground leading-relaxed">
+        <CardContent className="relative p-4 pt-0">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {tool.description}
           </p>
-          <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border/50">
+          <div className="mt-3 p-3 rounded-md bg-muted/30 border border-border/50">
             {tool.id === "spreadsheet-analyzer" && (
               <div className="space-y-2">
                 <div className="flex gap-2">
@@ -157,7 +157,7 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
               </div>
             )}
           </div>
-          <div className="mt-4 flex items-center text-sm text-muted-foreground group-hover:text-primary transition-colors">
+          <div className="mt-3 flex items-center text-xs text-muted-foreground group-hover:text-primary transition-colors">
             <span className="font-medium">
               {tool.status === "active" ? "Launch Tool" : "View Details"}
             </span>
