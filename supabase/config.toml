@@ -54,3 +54,6 @@ verify_jwt = true
 
 [functions.scheduled-sheet-processor]
 verify_jwt = false
+
+[functions.analyze-profitpro]
+verify_jwt = true

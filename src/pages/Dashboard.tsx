@@ -17,6 +17,7 @@ import { ReportViewer } from "@/components/ReportViewer";
 import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
 import { ReportHistory } from "@/components/ReportHistory";
 import { ToolsGrid } from "@/components/ToolsGrid";
+import { ProfitProWorkflow } from "@/components/profitpro/ProfitProWorkflow";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import {
@@ -716,6 +717,19 @@ const Dashboard = () => {
                                             onViewReports={() => setActiveTab("reports")}
                                             hasExistingConnections={connectionCount > 0}
                                         />
+                                    </div>
+                                ) : selectedTool === "cvp-analyzer" ? (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <h2 className="text-2xl font-bold">ProfitPro</h2>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setSelectedTool(null)}
+                                            >
+                                                ← Back to Tools
+                                            </Button>
+                                        </div>
+                                        <ProfitProWorkflow onBack={() => setSelectedTool(null)} />
                                     </div>
                                 ) : selectedTool ? (
                                     <div className="space-y-6">

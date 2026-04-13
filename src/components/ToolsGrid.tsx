@@ -30,7 +30,7 @@ const tools: Tool[] = [
     name: "ProfitPro",
     description: "Analyze Cost-Volume-Profit relationships to optimize pricing and profitability",
     icon: TrendingUp,
-    status: "coming-soon",
+    status: "active",
     gradientFrom: "from-emerald-500",
     gradientTo: "to-teal-500",
   },
