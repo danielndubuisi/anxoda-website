@@ -166,6 +166,69 @@ export type Database = {
         }
         Relationships: []
       }
+      profitpro_analyses: {
+        Row: {
+          ai_insights: Json | null
+          config: Json
+          created_at: string
+          cvp_results: Json | null
+          error_message: string | null
+          field_mapping: Json
+          id: string
+          processing_status: string
+          source_connection_id: string | null
+          source_report_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_insights?: Json | null
+          config?: Json
+          created_at?: string
+          cvp_results?: Json | null
+          error_message?: string | null
+          field_mapping?: Json
+          id?: string
+          processing_status?: string
+          source_connection_id?: string | null
+          source_report_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_insights?: Json | null
+          config?: Json
+          created_at?: string
+          cvp_results?: Json | null
+          error_message?: string | null
+          field_mapping?: Json
+          id?: string
+          processing_status?: string
+          source_connection_id?: string | null
+          source_report_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profitpro_analyses_source_connection_id_fkey"
+            columns: ["source_connection_id"]
+            isOneToOne: false
+            referencedRelation: "live_sheet_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profitpro_analyses_source_report_id_fkey"
+            columns: ["source_report_id"]
+            isOneToOne: false
+            referencedRelation: "spreadsheet_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spreadsheet_reports: {
         Row: {
           chart_data: Json | null
