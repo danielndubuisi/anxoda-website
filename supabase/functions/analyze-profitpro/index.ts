@@ -106,7 +106,7 @@ serve(async (req) => {
 
     // Calculate CVP metrics
     const currentVolume = totalVolume || rowCount;
-    const pricePerUnit = config?.unitPrice || (unitPrice
+    const pricePerUnit = config?.unitPrice || manualValues.unitPrice || (unitPrice
       ? (jsonData as any[]).reduce((s: number, r: any) => s + parseNum(r[unitPrice]), 0) / rowCount
       : totalRevenue / currentVolume);
 
