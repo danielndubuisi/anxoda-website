@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, AlertCircle, Wand2, DollarSign } from "lucide-react";
+import { CheckCircle, AlertCircle, Wand2 } from "lucide-react";
 
 export interface FieldMapping {
   revenue: string | null;
@@ -163,7 +163,7 @@ export const FieldMapper = ({ columns, onMappingComplete, onBack }: FieldMapperP
 
                   {isManual ? (
                     <div className="flex-1 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="h-4 w-4 text-muted-foreground shrink-0 flex items-center justify-center text-sm font-semibold">₦</span>
                       <Input
                         type="number"
                         placeholder="Enter total value..."
