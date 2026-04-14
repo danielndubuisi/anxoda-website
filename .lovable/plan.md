@@ -1,149 +1,63 @@
 
 
-## ProfitPro Phase 1: Intelligent CVP Dashboard
+## Enhance ProfitPro: Reusable Data Connection + Manual Field Entry
 
-Build the first module of ProfitPro as a fully functional tool within the existing Anxoda tool network. Users connect data via existing spreadsheet/live-sheet flows, then map financial fields for CVP analysis. The AI generates prescriptive profitability insights.
+Two changes: (1) Let ProfitPro use the existing `DataConnectionSelector` for new uploads/connections instead of only listing existing reports, and (2) allow manual value entry in the FieldMapper when a column isn't available in the data.
 
----
+### 1. ProfitProWorkflow.tsx - Add DataConnectionSelector for New Data
 
-### Architecture Overview
+**Current**: Step 1 ("Select Data") only lists existing `spreadsheet_reports`. Users can't upload new data directly from ProfitPro.
 
-```text
-User clicks ProfitPro in Tools
-         │
-         ▼
-┌──────────────────────────┐
-│  ProfitPro Setup Wizard  │
-│  Step 1: Select Data     │  ← Reuses existing spreadsheet_reports / live_sheet_connections
-│  Step 2: Map Fields      │  ← NEW: User maps columns to financial roles
-│  Step 3: Configure       │  ← Set unit price, volume baseline, etc.
-└──────────┬───────────────┘
-           ▼
-┌──────────────────────────┐
-│  Edge Function:          │
-│  analyze-profitpro       │  ← NEW: Parses data, computes CVP metrics, calls AI
-└──────────┬───────────────┘
-           ▼
-┌──────────────────────────┐
-│  CVP Dashboard View      │
-│  - Interactive CVP chart │
-│  - Health metrics cards  │
-│  - AI prescriptions      │
-│  - DOL warning system    │
-└──────────────────────────┘
+**Change**: Add a tabbed interface in Step 1 with two options:
+- **"Existing Reports"** tab - current behavior, pick from completed reports
+- **"Connect New Data"** tab - embeds the existing `DataConnectionSelector` component (same one used in A.S.S.), letting users upload a spreadsheet or connect a live sheet directly from ProfitPro
+
+When a new upload completes via `DataConnectionSelector`, we wait for the report to be created in `spreadsheet_reports`, then extract its columns and proceed to the Map Fields step -- same as selecting an existing report.
+
+### 2. FieldMapper.tsx - Manual Value Entry Mode
+
+**Current**: Each financial role has a dropdown to pick a column. If the data doesn't have a "Fixed Costs" column, the user is stuck.
+
+**Change**: Add a toggle per required field (fixedCosts, variableCosts) that switches between:
+- **"Map to column"** (default) - existing dropdown behavior
+- **"Enter manually"** - shows a numeric input where the user types a dollar value (e.g., $50,000 for total fixed costs)
+
+Update the `FieldMapping` interface to support manual values:
+
+```typescript
+export interface FieldMapping {
+  revenue: string | null;
+  fixedCosts: string | null;
+  variableCosts: string | null;
+  volume: string | null;
+  unitPrice: string | null;
+  date: string | null;
+  category: string | null;
+  manualValues?: {
+    fixedCosts?: number;
+    variableCosts?: number;
+    unitPrice?: number;
+  };
+}
 ```
 
----
+The validation logic changes: a required field is satisfied if it has either a mapped column OR a manual value.
 
-### What Gets Built
+### 3. Edge Function Update - Handle Manual Values
 
-#### 1. Database: New `profitpro_analyses` table
+Update `analyze-profitpro/index.ts` to check `fieldMapping.manualValues`. If `manualValues.fixedCosts` is provided, use that number directly instead of summing from the column. Same for `variableCosts` and `unitPrice`.
 
-Stores each ProfitPro analysis run linked to the user and optionally to an existing spreadsheet report.
+### Files Changed
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| id | uuid | Primary key |
-| user_id | uuid | Owner |
-| source_report_id | uuid (nullable) | Links to `spreadsheet_reports` if reusing data |
-| source_connection_id | uuid (nullable) | Links to `live_sheet_connections` if reusing |
-| field_mapping | jsonb | User's column-to-financial-field mapping |
-| config | jsonb | Unit price, fixed costs baseline, etc. |
-| cvp_results | jsonb | Computed BEP, CMR, DOL, margins |
-| ai_insights | jsonb | AI-generated prescriptions |
-| processing_status | text | processing / completed / failed |
-| created_at / updated_at | timestamps | Standard |
-
-RLS: Users can only CRUD their own rows.
-
-#### 2. Frontend Components (4 new files)
-
-**`src/components/profitpro/ProfitProWorkflow.tsx`**
-- Multi-step wizard: Select Data Source --> Map Fields --> Configure --> Results
-- Step 1 shows existing reports and live-sheet connections to pick from (or upload new)
-- Step 2 presents detected columns and lets user drag/assign them to: Revenue, Fixed Costs, Variable Costs, Volume/Quantity, Date, Product/Category
-- Step 3 sets baseline unit price and any overrides
-- Step 4 shows the CVP Dashboard
-
-**`src/components/profitpro/FieldMapper.tsx`**
-- Displays columns from the selected data source
-- AI auto-suggests mappings based on column names (reuses existing `schema_detect` patterns)
-- User confirms/corrects with dropdowns
-- Financial roles: Revenue, Fixed Costs, Variable Costs, Volume, Unit Price, Date, Category
-
-**`src/components/profitpro/CVPDashboard.tsx`**
-- **Dynamic CVP Chart**: Recharts line chart plotting Revenue line, Total Cost line, Fixed Cost line with BEP intersection marker
-- **Health Metrics Cards**: Contribution Margin Ratio, Break-Even Point (units + revenue), Degree of Operating Leverage, Current Profit/Loss position
-- **DOL Warning System**: Amber/red alerts when DOL is negative (loss-amplifying zone)
-- **AI Prescriptions Panel**: Reuses the existing prescription card pattern from ReportViewer (title, action, reason, expectedOutcome, priority, effort)
-
-**`src/components/profitpro/ProfitProReport.tsx`**
-- Read-only view of a completed analysis (for viewing from Reports tab)
-
-#### 3. Edge Function: `supabase/functions/analyze-profitpro/index.ts`
-
-Accepts: `{ sourceReportId?, sourceConnectionId?, fieldMapping, config }`
-
-Processing pipeline:
-1. Fetch raw data from storage (reuses existing download logic from process-spreadsheet)
-2. Parse with XLSX, apply field mapping to extract financial columns
-3. Compute CVP metrics:
-   - Total Revenue, Total Variable Costs, Total Fixed Costs
-   - Contribution Margin = Revenue - Variable Costs
-   - CMR = CM / Revenue
-   - BEP (units) = Fixed Costs / CM per unit
-   - BEP (revenue) = Fixed Costs / CMR
-   - DOL = CM / Operating Income (with negative DOL detection)
-   - Current volume position relative to BEP
-4. Call Lovable AI (with OpenAI fallback) for prescriptive analysis using financial context
-5. Store results in `profitpro_analyses` table
-6. Return computed metrics + AI insights
-
-#### 4. Dashboard Integration
-
-- Update `ToolsGrid.tsx`: Change ProfitPro status from "coming-soon" to "active"
-- Update `Dashboard.tsx`: Add `selectedTool === "cvp-analyzer"` case that renders `ProfitProWorkflow`
-- ProfitPro analyses appear in the Reports tab alongside spreadsheet reports
-
----
-
-### What Gets Reused
-
-| Existing Asset | How ProfitPro Uses It |
-|---|---|
-| `spreadsheet_reports` table | Source data reference |
-| `live_sheet_connections` table | Source data reference |
-| Storage buckets (spreadsheets) | Downloads raw files |
-| `process-spreadsheet` parsing logic | XLSX parsing patterns |
-| `schema_detect.py` column matching | Inspires client-side auto-mapping |
-| ReportViewer prescription cards | Same UI pattern for AI insights |
-| Lovable AI Gateway | Powers prescriptive recommendations |
-| Auth context | Same user auth flow |
-
----
-
-### Files Changed/Created
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/components/profitpro/ProfitProWorkflow.tsx` | Create |
-| `src/components/profitpro/FieldMapper.tsx` | Create |
-| `src/components/profitpro/CVPDashboard.tsx` | Create |
-| `src/components/profitpro/ProfitProReport.tsx` | Create |
-| `supabase/functions/analyze-profitpro/index.ts` | Create |
-| `src/components/ToolsGrid.tsx` | Update status to active |
-| `src/pages/Dashboard.tsx` | Add ProfitPro tool routing |
-| `supabase/config.toml` | Add analyze-profitpro function config |
-| Migration | Create `profitpro_analyses` table + RLS |
+| `src/components/profitpro/ProfitProWorkflow.tsx` | Add DataConnectionSelector tab in Step 1; handle new upload flow |
+| `src/components/profitpro/FieldMapper.tsx` | Add manual entry toggle + input for cost fields; update FieldMapping interface |
+| `supabase/functions/analyze-profitpro/index.ts` | Handle `manualValues` in field mapping |
 
----
+### Technical Details
 
-### Not Included in Phase 1 (Future Phases)
-
-- Module 2: Automated Variance Advisor (budget vs actual comparison)
-- Module 3: What-If Sandbox (Monte Carlo simulation, interactive sliders)
-- ERP/QuickBooks OAuth integration
-- Enterprise SQL connector
-- Real-time live-sync updates
-- Redis caching layer
+- The `DataConnectionSelector` `onConnectionComplete` callback returns `{ type, file, fileUrl }`. After upload, we poll `spreadsheet_reports` for a matching `file_path` to get the report ID and proceed.
+- Manual entry toggle uses a simple `Switch` component next to the dropdown. When toggled on, the dropdown is replaced by a currency `Input`.
+- The edge function checks `fieldMapping.manualValues?.fixedCosts` before falling back to column summation.
 
