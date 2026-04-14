@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, AlertCircle, Wand2, DollarSign } from "lucide-react";
+import { CheckCircle, AlertCircle, Wand2 } from "lucide-react";
 
 export interface FieldMapping {
   revenue: string | null;
