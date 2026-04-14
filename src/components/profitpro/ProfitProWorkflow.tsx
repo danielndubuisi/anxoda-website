@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FieldMapper, FieldMapping } from "./FieldMapper";
 import { CVPDashboard } from "./CVPDashboard";
-import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle } from "lucide-react";
+import DataConnectionSelector from "@/components/DataConnectionSelector";
+import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle, Plus } from "lucide-react";
 
 type Step = "select" | "map" | "configure" | "processing" | "results";
 
@@ -38,6 +40,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [cvpResults, setCvpResults] = useState<any>(null);
   const [aiInsights, setAiInsights] = useState<any>(null);
+  const [pollingForReport, setPollingForReport] = useState(false);
 
   // Fetch available data sources
   useEffect(() => {
@@ -67,24 +70,18 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
     setSelectedSource(source);
     setLoading(true);
     try {
-      // Download and parse the file to get columns
       const { data: fileData, error } = await supabase.storage
         .from("spreadsheets")
         .download(source.filePath);
       if (error || !fileData) throw new Error("Failed to download file");
 
       const arrayBuf = await fileData.arrayBuffer();
-      // We'll send this to the edge function later; for now extract column names client-side
-      // Using a simple approach: read first line for CSV or use the edge function
       const text = new TextDecoder().decode(new Uint8Array(arrayBuf).slice(0, 10000));
       const firstLine = text.split(/\r?\n/)[0];
-      // Try CSV parsing
       const cols = firstLine.split(",").map(c => c.replace(/^["']|["']$/g, "").trim()).filter(Boolean);
       if (cols.length > 1) {
         setColumns(cols);
       } else {
-        // Might be Excel - we'll let the edge function handle it, use a placeholder approach
-        // Try tab-separated
         const tabCols = firstLine.split("\t").map(c => c.trim()).filter(Boolean);
         setColumns(tabCols.length > 1 ? tabCols : ["Unable to detect columns - the edge function will parse the file"]);
       }
@@ -94,6 +91,54 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle new data connection from DataConnectionSelector
+  const handleNewConnection = async (connectionData: { type: string; file?: File; fileUrl?: string }) => {
+    if (!user || !connectionData.fileUrl) return;
+    setPollingForReport(true);
+
+    // Extract file path from the signed URL
+    const urlPath = connectionData.fileUrl.split("/spreadsheets/")[1]?.split("?")[0];
+    if (!urlPath) {
+      toast({ title: "Error", description: "Could not determine file path", variant: "destructive" });
+      setPollingForReport(false);
+      return;
+    }
+
+    // Poll for the report to be created and completed
+    const maxAttempts = 30;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const { data: reports } = await supabase
+        .from("spreadsheet_reports")
+        .select("id, title, original_filename, file_path, processing_status")
+        .eq("user_id", user.id)
+        .like("file_path", `%${decodeURIComponent(urlPath)}%`)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (reports && reports.length > 0) {
+        const report = reports[0];
+        if (report.processing_status === "completed" || report.processing_status === "failed") {
+          const source: DataSource = {
+            type: "report",
+            id: report.id,
+            title: report.title,
+            filename: report.original_filename,
+            filePath: report.file_path,
+          };
+          setPollingForReport(false);
+          // Refresh sources list
+          setDataSources(prev => [source, ...prev.filter(s => s.id !== source.id)]);
+          await handleSelectSource(source);
+          return;
+        }
+      }
+    }
+
+    setPollingForReport(false);
+    toast({ title: "Timeout", description: "Report processing took too long. Please try selecting it from Existing Reports.", variant: "destructive" });
   };
 
   const handleMappingComplete = (mapping: FieldMapping) => {
@@ -195,44 +240,75 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
           <div>
             <h3 className="text-lg font-semibold">Select Data Source</h3>
             <p className="text-sm text-muted-foreground">
-              Choose from your existing reports or upload a new spreadsheet for CVP analysis.
+              Choose from your existing reports or connect a new data source for CVP analysis.
             </p>
           </div>
-          {dataSources.length === 0 ? (
+
+          {pollingForReport && (
             <Card>
               <CardContent className="p-8 text-center">
-                <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                <p className="font-medium">No data sources found</p>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-primary" />
+                <p className="font-medium">Processing your data...</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Upload a spreadsheet using A.S.S first, then come back to run a CVP analysis on it.
+                  Your file is being analyzed. This will proceed to field mapping automatically.
                 </p>
-                <Button variant="outline" onClick={onBack} className="mt-4">← Back to Tools</Button>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {dataSources.map(ds => (
-                <Card
-                  key={ds.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => !loading && handleSelectSource(ds)}
-                >
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <FileSpreadsheet className="h-8 w-8 text-primary shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{ds.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{ds.filename}</p>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0">Report</Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           )}
-          {loading && (
-            <div className="flex items-center justify-center p-4 gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading columns...
-            </div>
+
+          {!pollingForReport && (
+            <Tabs defaultValue="existing" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="existing">Existing Reports</TabsTrigger>
+                <TabsTrigger value="new" className="flex items-center gap-1.5">
+                  <Plus className="h-3 w-3" /> Connect New Data
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="existing" className="mt-4">
+                {dataSources.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                      <p className="font-medium">No existing reports found</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Switch to the "Connect New Data" tab to upload a spreadsheet or connect a live sheet.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {dataSources.map(ds => (
+                      <Card
+                        key={ds.id}
+                        className="cursor-pointer hover:border-primary/50 transition-colors"
+                        onClick={() => !loading && handleSelectSource(ds)}
+                      >
+                        <CardContent className="p-4 flex items-center gap-3">
+                          <FileSpreadsheet className="h-8 w-8 text-primary shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{ds.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{ds.filename}</p>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0">Report</Badge>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+                {loading && (
+                  <div className="flex items-center justify-center p-4 gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading columns...
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="new" className="mt-4">
+                <DataConnectionSelector
+                  onConnectionComplete={handleNewConnection}
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       )}
@@ -285,12 +361,22 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
                 <div className="p-3 rounded-md bg-muted/30 border border-border/50">
                   <p className="text-xs font-medium text-muted-foreground mb-2">Field Mapping Summary</p>
                   <div className="grid grid-cols-2 gap-1 text-xs">
-                    {Object.entries(fieldMapping).filter(([, v]) => v).map(([k, v]) => (
-                      <div key={k} className="flex justify-between">
-                        <span className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1")}:</span>
-                        <span className="font-medium">{v}</span>
-                      </div>
-                    ))}
+                    {Object.entries(fieldMapping)
+                      .filter(([k, v]) => v && k !== "manualValues")
+                      .map(([k, v]) => (
+                        <div key={k} className="flex justify-between">
+                          <span className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1")}:</span>
+                          <span className="font-medium">{String(v)}</span>
+                        </div>
+                      ))}
+                    {fieldMapping.manualValues && Object.entries(fieldMapping.manualValues)
+                      .filter(([, v]) => v !== undefined)
+                      .map(([k, v]) => (
+                        <div key={`manual-${k}`} className="flex justify-between">
+                          <span className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1")}:</span>
+                          <span className="font-medium">${Number(v).toLocaleString()} (manual)</span>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}

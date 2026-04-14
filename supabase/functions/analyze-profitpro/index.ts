@@ -78,38 +78,28 @@ serve(async (req) => {
 
     // Extract financial columns using field mapping
     const { revenue, fixedCosts, variableCosts, volume, unitPrice } = fieldMapping;
-
-    const parseNum = (val: any): number => {
-      if (typeof val === 'number') return val;
-      if (typeof val === 'string') {
-        const cleaned = val.replace(/[$,\s]/g, '');
-        const num = parseFloat(cleaned);
-        return isNaN(num) ? 0 : num;
-      }
-      return 0;
-    };
+    const manualValues = fieldMapping.manualValues || {};
 
     let totalRevenue = 0;
-    let totalVariableCosts = 0;
-    let totalFixedCosts = 0;
+    let totalVariableCosts = manualValues.variableCosts || 0;
+    let totalFixedCosts = manualValues.fixedCosts || 0;
     let totalVolume = 0;
     let rowCount = 0;
 
     for (const row of jsonData as any[]) {
       if (revenue && row[revenue] !== undefined) totalRevenue += parseNum(row[revenue]);
-      if (variableCosts && row[variableCosts] !== undefined) totalVariableCosts += parseNum(row[variableCosts]);
-      if (fixedCosts && row[fixedCosts] !== undefined) totalFixedCosts += parseNum(row[fixedCosts]);
+      if (!manualValues.variableCosts && variableCosts && row[variableCosts] !== undefined) totalVariableCosts += parseNum(row[variableCosts]);
+      if (!manualValues.fixedCosts && fixedCosts && row[fixedCosts] !== undefined) totalFixedCosts += parseNum(row[fixedCosts]);
       if (volume && row[volume] !== undefined) totalVolume += parseNum(row[volume]);
       rowCount++;
     }
 
     // If fixed costs column has per-row values, it might be repeated — take average or first row
     // Heuristic: if all fixedCosts values are the same, use one; otherwise sum
-    if (fixedCosts) {
+    if (!manualValues.fixedCosts && fixedCosts) {
       const fcValues = (jsonData as any[]).map(r => parseNum(r[fixedCosts])).filter(v => v > 0);
       const unique = [...new Set(fcValues)];
       if (unique.length === 1) {
-        // Fixed cost is repeated per row — use single value
         totalFixedCosts = unique[0];
       }
     }
