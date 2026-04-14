@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FieldMapper, FieldMapping } from "./FieldMapper";
 import { CVPDashboard } from "./CVPDashboard";
-import DataConnectionSelector from "@/components/DataConnectionSelector";
+import { DataConnectionSelector } from "@/components/DataConnectionSelector";
 import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle, Plus } from "lucide-react";
 
 type Step = "select" | "map" | "configure" | "processing" | "results";

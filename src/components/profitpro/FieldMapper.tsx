@@ -150,9 +150,9 @@ export const FieldMapper = ({ columns, onMappingComplete, onBack }: FieldMapperP
                 <div className="flex items-center gap-4">
                   <div className="w-44 flex items-center gap-2 shrink-0">
                     {satisfied ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                     ) : role.required ? (
-                      <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                     ) : (
                       <div className="h-4 w-4 shrink-0" />
                     )}
