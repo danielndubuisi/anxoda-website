@@ -2,10 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, TrendingUp, DollarSign, Target, Activity, ArrowLeft } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Legend, Area, ComposedChart,
+  AlertTriangle, TrendingUp, Target, Activity, ArrowLeft,
+  Database, Sparkles,
+} from "lucide-react";
+import {
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, Legend, Line, ComposedChart,
 } from "recharts";
 
 interface CVPResults {
@@ -33,14 +36,14 @@ interface Prescription {
   effort: "low" | "medium" | "high";
 }
 
-interface CVPDashboardProps {
+interface ProfitProInsightsProps {
   cvpResults: CVPResults;
   aiInsights: {
     summary?: string;
     prescriptions?: Prescription[];
     keyFindings?: string[];
   } | null;
-  title: string;
+  onConnectData: () => void;
   onBack: () => void;
   onNewAnalysis: () => void;
 }
@@ -82,18 +85,18 @@ const priorityColor: Record<string, string> = {
   low: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
 };
 
-export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAnalysis }: CVPDashboardProps) => {
+export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, onBack, onNewAnalysis }: ProfitProInsightsProps) => {
   const chartData = buildChartData(r);
   const dolWarning = r.degreeOfOperatingLeverage < 0;
   const isLoss = r.operatingIncome < 0;
 
   const metrics = [
-    { label: "Contribution Margin Ratio", value: pct(r.contributionMarginRatio), icon: TrendingUp, color: "text-emerald-600" },
+    { label: "Contribution Margin", value: pct(r.contributionMarginRatio), icon: TrendingUp, color: "text-emerald-600" },
     { label: "Break-Even (Units)", value: fmtUnits(r.breakEvenUnits), icon: Target, color: "text-primary" },
-    { label: "Break-Even (Revenue)", value: fmt(r.breakEvenRevenue), icon: DollarSign, color: "text-primary" },
+    { label: "Break-Even (Revenue)", value: fmt(r.breakEvenRevenue), icon: Target, color: "text-primary" },
     { label: "Operating Income", value: fmt(r.operatingIncome), icon: Activity, color: isLoss ? "text-red-600" : "text-emerald-600" },
     { label: "Margin of Safety", value: pct(r.marginOfSafetyPercent), icon: Target, color: r.marginOfSafetyPercent > 0.2 ? "text-emerald-600" : "text-amber-600" },
-    { label: "Degree of Operating Leverage", value: r.degreeOfOperatingLeverage.toFixed(2), icon: Activity, color: dolWarning ? "text-red-600" : "text-primary" },
+    { label: "Operating Leverage", value: r.degreeOfOperatingLeverage.toFixed(2), icon: Activity, color: dolWarning ? "text-red-600" : "text-primary" },
   ];
 
   const prescriptions = Array.isArray(aiInsights?.prescriptions) ? aiInsights.prescriptions : [];
@@ -106,8 +109,11 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
           <div>
-            <h2 className="text-xl font-bold">{title}</h2>
-            <p className="text-sm text-muted-foreground">CVP Analysis Dashboard</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold">ProfitPro Insights</h2>
+              <Badge variant="secondary" className="text-xs"><Sparkles className="h-3 w-3 mr-1" /> AI-Generated</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">Based on your business inputs</p>
           </div>
         </div>
         <Button variant="outline" onClick={onNewAnalysis}>New Analysis</Button>
@@ -119,9 +125,9 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
           <CardContent className="p-4 flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
             <div>
-              <p className="font-semibold text-red-600 dark:text-red-400">Loss-Amplifying Zone Detected</p>
+              <p className="font-semibold text-red-600 dark:text-red-400">Below Break-Even</p>
               <p className="text-sm text-muted-foreground">
-                Your Degree of Operating Leverage is negative ({r.degreeOfOperatingLeverage.toFixed(2)}), meaning losses amplify faster than revenue changes. Prioritize reaching break-even.
+                Your current metrics indicate you're operating at a loss. Review the prescriptions below to reach profitability.
               </p>
             </div>
           </CardContent>
@@ -146,7 +152,7 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
 
       <Tabs defaultValue="chart">
         <TabsList>
-          <TabsTrigger value="chart">CVP Chart</TabsTrigger>
+          <TabsTrigger value="chart">Break-Even Chart</TabsTrigger>
           <TabsTrigger value="insights">AI Insights</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions ({prescriptions.length})</TabsTrigger>
         </TabsList>
@@ -157,7 +163,7 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
               <CardTitle className="text-base">Cost-Volume-Profit Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={350}>
                 <ComposedChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="volume" tickFormatter={fmtUnits} label={{ value: "Volume (units)", position: "insideBottom", offset: -5 }} />
@@ -197,9 +203,6 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
                   </ul>
                 </div>
               )}
-              {!aiInsights?.summary && keyFindings.length === 0 && (
-                <p className="text-sm text-muted-foreground">No AI insights available for this analysis.</p>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -215,9 +218,7 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <h4 className="font-semibold">{p.title}</h4>
                     <div className="flex gap-2">
-                      <Badge variant="outline" className={priorityColor[p.priority] || ""}>
-                        {p.priority} priority
-                      </Badge>
+                      <Badge variant="outline" className={priorityColor[p.priority] || ""}>{p.priority} priority</Badge>
                       <Badge variant="secondary">{p.effort} effort</Badge>
                     </div>
                   </div>
@@ -241,6 +242,25 @@ export const CVPDashboard = ({ cvpResults: r, aiInsights, title, onBack, onNewAn
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* CTA: Connect Data */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Database className="h-6 w-6 text-primary" />
+          </div>
+          <div className="flex-1 text-center sm:text-left">
+            <h4 className="font-semibold">Want deeper, data-driven insights?</h4>
+            <p className="text-sm text-muted-foreground">
+              Connect your spreadsheet or live data source for more accurate analysis based on real transaction data.
+            </p>
+          </div>
+          <Button onClick={onConnectData}>
+            <Database className="h-4 w-4 mr-1" />
+            Connect Data
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

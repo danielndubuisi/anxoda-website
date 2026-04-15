@@ -10,10 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FieldMapper, FieldMapping } from "./FieldMapper";
 import { CVPDashboard } from "./CVPDashboard";
+import { ProfitProDialogue, DialogueAnswers } from "./ProfitProDialogue";
+import { ProfitProThinking } from "./ProfitProThinking";
+import { ProfitProInsights } from "./ProfitProInsights";
 import { DataConnectionSelector } from "@/components/DataConnectionSelector";
-import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle, Plus } from "lucide-react";
+import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle, Plus, MessageSquare } from "lucide-react";
 
-type Step = "select" | "map" | "configure" | "processing" | "results";
+type Step = "dialogue" | "thinking" | "insights" | "select" | "map" | "configure" | "processing" | "results";
 
 interface DataSource {
   type: "report" | "connection";
@@ -30,7 +33,10 @@ interface ProfitProWorkflowProps {
 export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [step, setStep] = useState<Step>("select");
+  const [step, setStep] = useState<Step>("dialogue");
+  const [dialogueAnswers, setDialogueAnswers] = useState<DialogueAnswers | null>(null);
+  const [dialogueCvpResults, setDialogueCvpResults] = useState<any>(null);
+  const [dialogueAiInsights, setDialogueAiInsights] = useState<any>(null);
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [selectedSource, setSelectedSource] = useState<DataSource | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
@@ -66,6 +72,34 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
     load();
   }, [user]);
 
+  // Handle dialogue completion — call edge function in dialogue-only mode
+  const handleDialogueComplete = async (answers: DialogueAnswers) => {
+    setDialogueAnswers(answers);
+    setStep("thinking");
+
+    // Ensure minimum 3.5s thinking animation
+    const minDelay = new Promise(r => setTimeout(r, 3500));
+
+    try {
+      const apiCall = supabase.functions.invoke("analyze-profitpro", {
+        body: { dialogueAnswers: answers },
+      });
+
+      const [result] = await Promise.all([apiCall, minDelay]);
+      const { data, error } = result;
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setDialogueCvpResults(data.cvpResults);
+      setDialogueAiInsights(data.aiInsights);
+      setStep("insights");
+    } catch (err: any) {
+      toast({ title: "Analysis Failed", description: err.message, variant: "destructive" });
+      setStep("dialogue");
+    }
+  };
+
   const handleSelectSource = async (source: DataSource) => {
     setSelectedSource(source);
     setLoading(true);
@@ -93,12 +127,10 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
     }
   };
 
-  // Handle new data connection from DataConnectionSelector
   const handleNewConnection = async (connectionData: { type: string; file?: File; fileUrl?: string }) => {
     if (!user || !connectionData.fileUrl) return;
     setPollingForReport(true);
 
-    // Extract file path from the signed URL
     const urlPath = connectionData.fileUrl.split("/spreadsheets/")[1]?.split("?")[0];
     if (!urlPath) {
       toast({ title: "Error", description: "Could not determine file path", variant: "destructive" });
@@ -106,7 +138,6 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
       return;
     }
 
-    // Poll for the report to be created and completed
     const maxAttempts = 30;
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(r => setTimeout(r, 2000));
@@ -129,7 +160,6 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
             filePath: report.file_path,
           };
           setPollingForReport(false);
-          // Refresh sources list
           setDataSources(prev => [source, ...prev.filter(s => s.id !== source.id)]);
           await handleSelectSource(source);
           return;
@@ -156,6 +186,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
           sourceReportId: selectedSource.type === "report" ? selectedSource.id : null,
           sourceConnectionId: selectedSource.type === "connection" ? selectedSource.id : null,
           fieldMapping,
+          dialogueAnswers: dialogueAnswers || undefined,
           config: {
             unitPrice: config.unitPrice ? parseFloat(config.unitPrice) : null,
             title: config.title || "ProfitPro Analysis",
@@ -179,7 +210,10 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   };
 
   const resetWorkflow = () => {
-    setStep("select");
+    setStep("dialogue");
+    setDialogueAnswers(null);
+    setDialogueCvpResults(null);
+    setDialogueAiInsights(null);
     setSelectedSource(null);
     setColumns([]);
     setFieldMapping(null);
@@ -189,16 +223,28 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
     setAiInsights(null);
   };
 
-  const steps = [
-    { key: "select", label: "Select Data", icon: Database },
-    { key: "map", label: "Map Fields", icon: FileSpreadsheet },
-    { key: "configure", label: "Configure", icon: Settings },
-    { key: "results", label: "Results", icon: BarChart3 },
-  ];
+  // --- Render by step ---
 
-  const stepIndex = ["select", "map", "configure", "processing", "results"].indexOf(step);
+  if (step === "dialogue") {
+    return <ProfitProDialogue onComplete={handleDialogueComplete} onBack={onBack} />;
+  }
 
-  // Results view
+  if (step === "thinking") {
+    return <ProfitProThinking />;
+  }
+
+  if (step === "insights" && dialogueCvpResults) {
+    return (
+      <ProfitProInsights
+        cvpResults={dialogueCvpResults}
+        aiInsights={dialogueAiInsights}
+        onConnectData={() => setStep("select")}
+        onBack={() => setStep("dialogue")}
+        onNewAnalysis={resetWorkflow}
+      />
+    );
+  }
+
   if (step === "results" && cvpResults) {
     return (
       <CVPDashboard
@@ -211,11 +257,21 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
     );
   }
 
+  // Data connection flow steps
+  const dataSteps = [
+    { key: "select", label: "Select Data", icon: Database },
+    { key: "map", label: "Map Fields", icon: FileSpreadsheet },
+    { key: "configure", label: "Configure", icon: Settings },
+    { key: "results", label: "Results", icon: BarChart3 },
+  ];
+  const dataStepKeys = ["select", "map", "configure", "processing", "results"];
+  const stepIndex = dataStepKeys.indexOf(step);
+
   return (
     <div className="space-y-6">
       {/* Progress */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        {steps.map((s, i) => {
+        {dataSteps.map((s, i) => {
           const Icon = s.icon;
           const isActive = s.key === step || (step === "processing" && s.key === "results");
           const isDone = stepIndex > i;
@@ -237,11 +293,16 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
       {/* Step: Select Data Source */}
       {step === "select" && (
         <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold">Select Data Source</h3>
-            <p className="text-sm text-muted-foreground">
-              Choose from your existing reports or connect a new data source for CVP analysis.
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Connect Your Data</h3>
+              <p className="text-sm text-muted-foreground">
+                Upload a spreadsheet or select an existing report for deeper analysis.
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setStep("insights")}>
+              ← Back to Insights
+            </Button>
           </div>
 
           {pollingForReport && (
@@ -272,7 +333,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
                       <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                       <p className="font-medium">No existing reports found</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Switch to the "Connect New Data" tab to upload a spreadsheet or connect a live sheet.
+                        Switch to the "Connect New Data" tab to upload a spreadsheet.
                       </p>
                     </CardContent>
                   </Card>
@@ -304,9 +365,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
               </TabsContent>
 
               <TabsContent value="new" className="mt-4">
-                <DataConnectionSelector
-                  onConnectionComplete={handleNewConnection}
-                />
+                <DataConnectionSelector onConnectionComplete={handleNewConnection} />
               </TabsContent>
             </Tabs>
           )}
@@ -351,12 +410,8 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
                   onChange={e => setConfig(p => ({ ...p, unitPrice: e.target.value }))}
                   placeholder="Leave blank to auto-detect from data"
                 />
-                <p className="text-xs text-muted-foreground">
-                  If your data doesn't have a unit price column, enter it here. Otherwise leave blank.
-                </p>
               </div>
 
-              {/* Summary of mappings */}
               {fieldMapping && (
                 <div className="p-3 rounded-md bg-muted/30 border border-border/50">
                   <p className="text-xs font-medium text-muted-foreground mb-2">Field Mapping Summary</p>
@@ -374,7 +429,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
                       .map(([k, v]) => (
                         <div key={`manual-${k}`} className="flex justify-between">
                           <span className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1")}:</span>
-                          <span className="font-medium">${Number(v).toLocaleString()} (manual)</span>
+                          <span className="font-medium">₦{Number(v).toLocaleString()} (manual)</span>
                         </div>
                       ))}
                   </div>
@@ -390,17 +445,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
       )}
 
       {/* Step: Processing */}
-      {step === "processing" && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-semibold mb-2">Analyzing Your Data</h3>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Running CVP calculations and generating AI-powered profitability insights. This may take 30-60 seconds.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {step === "processing" && <ProfitProThinking />}
     </div>
   );
 };
