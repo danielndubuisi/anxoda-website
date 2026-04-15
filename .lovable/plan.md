@@ -1,63 +1,117 @@
 
 
-## Enhance ProfitPro: Reusable Data Connection + Manual Field Entry
+## ProfitPro Dialogue Layer: AI-First Conversational Onboarding
 
-Two changes: (1) Let ProfitPro use the existing `DataConnectionSelector` for new uploads/connections instead of only listing existing reports, and (2) allow manual value entry in the FieldMapper when a column isn't available in the data.
+Transform ProfitPro from a "select data first" tool into an AI-driven dialogue experience. Users answer guided business questions first, get immediate AI insights and a break-even chart from their answers alone, then optionally connect data to refine.
 
-### 1. ProfitProWorkflow.tsx - Add DataConnectionSelector for New Data
+### New Flow
 
-**Current**: Step 1 ("Select Data") only lists existing `spreadsheet_reports`. Users can't upload new data directly from ProfitPro.
-
-**Change**: Add a tabbed interface in Step 1 with two options:
-- **"Existing Reports"** tab - current behavior, pick from completed reports
-- **"Connect New Data"** tab - embeds the existing `DataConnectionSelector` component (same one used in A.S.S.), letting users upload a spreadsheet or connect a live sheet directly from ProfitPro
-
-When a new upload completes via `DataConnectionSelector`, we wait for the report to be created in `spreadsheet_reports`, then extract its columns and proceed to the Map Fields step -- same as selecting an existing report.
-
-### 2. FieldMapper.tsx - Manual Value Entry Mode
-
-**Current**: Each financial role has a dropdown to pick a column. If the data doesn't have a "Fixed Costs" column, the user is stuck.
-
-**Change**: Add a toggle per required field (fixedCosts, variableCosts) that switches between:
-- **"Map to column"** (default) - existing dropdown behavior
-- **"Enter manually"** - shows a numeric input where the user types a dollar value (e.g., $50,000 for total fixed costs)
-
-Update the `FieldMapping` interface to support manual values:
-
-```typescript
-export interface FieldMapping {
-  revenue: string | null;
-  fixedCosts: string | null;
-  variableCosts: string | null;
-  volume: string | null;
-  unitPrice: string | null;
-  date: string | null;
-  category: string | null;
-  manualValues?: {
-    fixedCosts?: number;
-    variableCosts?: number;
-    unitPrice?: number;
-  };
-}
+```text
+User clicks ProfitPro
+         │
+         ▼
+┌──────────────────────────────┐
+│  Dialogue Step 1-7           │
+│  Beautiful card-based Q&A    │
+│  One question at a time      │
+│  Progress bar + animations   │
+└──────────┬───────────────────┘
+           ▼
+┌──────────────────────────────┐
+│  "Thinking" Animation Modal  │
+│  3-4 second branded loading  │
+└──────────┬───────────────────┘
+           ▼
+┌──────────────────────────────┐
+│  AI Instant Insights         │
+│  - Break-even chart (from    │
+│    dialogue answers alone)   │
+│  - CVP metrics cards         │
+│  - Prescriptive insights     │
+│  - CTA: "Connect data for    │
+│    deeper analysis"          │
+└──────────┬───────────────────┘
+           ▼ (optional)
+┌──────────────────────────────┐
+│  Existing flow: Select Data  │
+│  → Map Fields → Full Results │
+└──────────────────────────────┘
 ```
 
-The validation logic changes: a required field is satisfied if it has either a mapped column OR a manual value.
+### Dialogue Questions (from the PDF)
 
-### 3. Edge Function Update - Handle Manual Values
+7 steps, one question per screen with engaging UI:
 
-Update `analyze-profitpro/index.ts` to check `fieldMapping.manualValues`. If `manualValues.fixedCosts` is provided, use that number directly instead of summing from the column. Same for `variableCosts` and `unitPrice`.
+1. **Target Profit** - "What profit do you plan to make?" + period selector (Monthly/Yearly)
+2. **Industry** - "What industry or business are you in?" (searchable dropdown with common industries)
+3. **Variable Costs** - Material cost per unit, Labour cost per unit, Other variable cost per unit (3 inputs with ₦ prefix)
+4. **Fixed Costs** - Rent, Equipment depreciation, Administrative costs, Other (4 inputs with ₦ prefix, for the selected period)
+5. **Unit Selling Price** - "At what price do you sell one unit of your product?" (single ₦ input)
+6. **Estimated Volume** - "How many units do you expect to sell in this period?" (number input)
+7. **Expected Revenue** - "How much do you expect to generate from sales?" (₦ input, auto-calculated hint from price x volume)
 
-### Files Changed
+### What Gets Built
 
-| File | Change |
+#### 1. `src/components/profitpro/ProfitProDialogue.tsx` (NEW)
+
+The main dialogue component:
+- Renders one question at a time with fade/slide transitions
+- Progress bar at top showing step X of 7
+- Each question has a title, description, themed icon, and input fields
+- "Continue" button advances; "Back" goes to previous question
+- Inputs use ₦ currency formatting where appropriate
+- On completion, triggers the AI analysis with all collected answers
+
+#### 2. `src/components/profitpro/ProfitProThinking.tsx` (NEW)
+
+Branded "thinking" animation shown while AI processes:
+- Animated brain/chart icon with pulse effect
+- Rotating status messages ("Calculating break-even point...", "Analyzing cost structure...", "Generating prescriptions...")
+- 3-5 second minimum display even if API returns faster (for UX polish)
+
+#### 3. `src/components/profitpro/ProfitProInsights.tsx` (NEW)
+
+Instant insights page from dialogue answers alone (no spreadsheet needed):
+- Break-even chart built from the user's manual inputs (price, variable costs, fixed costs, volume)
+- CVP metric cards (contribution margin, BEP units, BEP revenue, margin of safety, DOL)
+- AI prescriptive insights panel (generated by the edge function)
+- Call-to-action card: "Connect your data for deeper, more accurate analysis" which leads to the existing data connection flow
+
+#### 4. Update `ProfitProWorkflow.tsx`
+
+- Add a new initial step: `"dialogue"` before `"select"`
+- After dialogue completion + AI response, show `ProfitProInsights`
+- "Connect Data" CTA from insights leads to the existing `"select"` step
+- Dialogue answers are passed to the edge function alongside any data source for enhanced context
+
+#### 5. Update `supabase/functions/analyze-profitpro/index.ts`
+
+Add a new mode: **dialogue-only analysis**
+- Accept `dialogueAnswers` in the request body (targetProfit, industry, variableCosts breakdown, fixedCosts breakdown, unitPrice, volume, expectedRevenue)
+- When `dialogueAnswers` is provided without a `sourceReportId`, compute CVP metrics directly from the dialogue values (no file download needed)
+- Include dialogue context (industry, target profit, period) in the AI prompt for richer, more relevant prescriptions
+- When both `dialogueAnswers` AND `sourceReportId` are provided, use the dialogue as context but use the spreadsheet data for actual calculations
+
+#### 6. Update CVPDashboard formatting
+
+- Change `$` to `₦` in the `fmt()` function and the AI prompt in the edge function
+
+### Files Changed/Created
+
+| File | Action |
 |------|--------|
-| `src/components/profitpro/ProfitProWorkflow.tsx` | Add DataConnectionSelector tab in Step 1; handle new upload flow |
-| `src/components/profitpro/FieldMapper.tsx` | Add manual entry toggle + input for cost fields; update FieldMapping interface |
-| `supabase/functions/analyze-profitpro/index.ts` | Handle `manualValues` in field mapping |
+| `src/components/profitpro/ProfitProDialogue.tsx` | Create - 7-step conversational Q&A |
+| `src/components/profitpro/ProfitProThinking.tsx` | Create - Branded loading animation |
+| `src/components/profitpro/ProfitProInsights.tsx` | Create - Instant insights from dialogue |
+| `src/components/profitpro/ProfitProWorkflow.tsx` | Update - Add dialogue as first step, wire new flow |
+| `src/components/profitpro/CVPDashboard.tsx` | Update - ₦ currency formatting |
+| `supabase/functions/analyze-profitpro/index.ts` | Update - Support dialogue-only mode, ₦ in AI prompt |
 
 ### Technical Details
 
-- The `DataConnectionSelector` `onConnectionComplete` callback returns `{ type, file, fileUrl }`. After upload, we poll `spreadsheet_reports` for a matching `file_path` to get the report ID and proceed.
-- Manual entry toggle uses a simple `Switch` component next to the dropdown. When toggled on, the dropdown is replaced by a currency `Input`.
-- The edge function checks `fieldMapping.manualValues?.fixedCosts` before falling back to column summation.
+- Dialogue answers stored in component state as a typed object, passed to edge function as `dialogueAnswers`
+- CVP calculation from dialogue: totalVC = (material + labour + other) * volume; totalFC = rent + depreciation + admin + other; revenue = price * volume
+- Break-even chart uses same Recharts `ComposedChart` as CVPDashboard but built from dialogue inputs
+- The "thinking" animation uses CSS keyframes with `animate-pulse` and staggered text rotation via `setInterval`
+- AI prompt enhanced with industry context and target profit for more relevant prescriptions
 
