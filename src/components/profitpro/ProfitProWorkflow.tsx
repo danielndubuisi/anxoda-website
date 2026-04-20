@@ -13,10 +13,12 @@ import { CVPDashboard } from "./CVPDashboard";
 import { ProfitProDialogue, DialogueAnswers } from "./ProfitProDialogue";
 import { ProfitProThinking } from "./ProfitProThinking";
 import { ProfitProInsights } from "./ProfitProInsights";
+import { ProfitProWelcome } from "./ProfitProWelcome";
+import { ProfitProChat } from "./ProfitProChat";
 import { DataConnectionSelector } from "@/components/DataConnectionSelector";
 import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle, Plus, MessageSquare } from "lucide-react";
 
-type Step = "dialogue" | "thinking" | "insights" | "select" | "map" | "configure" | "processing" | "results";
+type Step = "welcome" | "dialogue" | "thinking" | "insights" | "chat" | "select" | "map" | "configure" | "processing" | "results";
 
 interface DataSource {
   type: "report" | "connection";
@@ -33,7 +35,7 @@ interface ProfitProWorkflowProps {
 export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [step, setStep] = useState<Step>("dialogue");
+  const [step, setStep] = useState<Step>("welcome");
   const [dialogueAnswers, setDialogueAnswers] = useState<DialogueAnswers | null>(null);
   const [dialogueCvpResults, setDialogueCvpResults] = useState<any>(null);
   const [dialogueAiInsights, setDialogueAiInsights] = useState<any>(null);
@@ -210,7 +212,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   };
 
   const resetWorkflow = () => {
-    setStep("dialogue");
+    setStep("welcome");
     setDialogueAnswers(null);
     setDialogueCvpResults(null);
     setDialogueAiInsights(null);
@@ -225,8 +227,12 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
 
   // --- Render by step ---
 
+  if (step === "welcome") {
+    return <ProfitProWelcome onStart={() => setStep("dialogue")} onBack={onBack} />;
+  }
+
   if (step === "dialogue") {
-    return <ProfitProDialogue onComplete={handleDialogueComplete} onBack={onBack} />;
+    return <ProfitProDialogue onComplete={handleDialogueComplete} onBack={() => setStep("welcome")} />;
   }
 
   if (step === "thinking") {
@@ -239,8 +245,20 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
         cvpResults={dialogueCvpResults}
         aiInsights={dialogueAiInsights}
         onConnectData={() => setStep("select")}
+        onChat={() => setStep("chat")}
         onBack={() => setStep("dialogue")}
         onNewAnalysis={resetWorkflow}
+      />
+    );
+  }
+
+  if (step === "chat") {
+    return (
+      <ProfitProChat
+        dialogueAnswers={dialogueAnswers}
+        cvpResults={cvpResults || dialogueCvpResults}
+        aiInsights={aiInsights || dialogueAiInsights}
+        onBack={() => setStep("insights")}
       />
     );
   }

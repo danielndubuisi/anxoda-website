@@ -10,9 +10,11 @@ import {
   ArrowRight, ArrowLeft, Sparkles,
 } from "lucide-react";
 
+export type DialoguePeriod = "daily" | "weekly" | "monthly" | "yearly";
+
 export interface DialogueAnswers {
   targetProfit: number;
-  period: "monthly" | "yearly";
+  period: DialoguePeriod;
   industry: string;
   variableCosts: { material: number; labour: number; other: number };
   fixedCosts: { rent: number; depreciation: number; admin: number; other: number };
@@ -36,14 +38,21 @@ const INDUSTRIES = [
 ];
 
 const STEPS = [
-  { icon: Target, title: "Target Profit", description: "What profit do you plan to make?" },
-  { icon: Factory, title: "Your Industry", description: "What industry or business are you in?" },
-  { icon: Boxes, title: "Variable Costs", description: "Break down your cost per unit produced" },
-  { icon: Building2, title: "Fixed Costs", description: "What are your recurring fixed expenses?" },
-  { icon: Tag, title: "Unit Selling Price", description: "At what price do you sell one unit of your product?" },
-  { icon: BarChart3, title: "Sales Volume", description: "How many units do you expect to sell?" },
-  { icon: TrendingUp, title: "Expected Revenue", description: "How much do you expect to generate from sales?" },
+  { icon: Target, title: "Your Profit Goal", description: "Let's start with what you want to earn" },
+  { icon: Factory, title: "Your Industry", description: "Helps us tailor advice to your business type" },
+  { icon: Boxes, title: "Cost to Make ONE Unit", description: "Just one item — not your total" },
+  { icon: Building2, title: "Fixed Bills", description: "What you pay no matter what you sell" },
+  { icon: Tag, title: "Your Selling Price", description: "How much one customer pays for one unit" },
+  { icon: BarChart3, title: "Sales Volume", description: "How many units you'll sell" },
+  { icon: TrendingUp, title: "Expected Revenue", description: "Total money you expect to earn" },
 ];
+
+const PERIOD_LABELS: Record<DialoguePeriod, string> = {
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+  yearly: "year",
+};
 
 const NairaInput = ({
   value, onChange, placeholder, id,
@@ -64,11 +73,10 @@ const NairaInput = ({
 
 export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [animDir, setAnimDir] = useState<"forward" | "back">("forward");
 
   // Form state
   const [targetProfit, setTargetProfit] = useState("");
-  const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [period, setPeriod] = useState<DialoguePeriod>("monthly");
   const [industry, setIndustry] = useState("");
   const [materialCost, setMaterialCost] = useState("");
   const [labourCost, setLabourCost] = useState("");
@@ -81,7 +89,8 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
   const [volume, setVolume] = useState("");
   const [expectedRevenue, setExpectedRevenue] = useState("");
 
-  // Auto-calculate expected revenue hint
+  const periodWord = PERIOD_LABELS[period];
+
   const autoRevenue = unitPrice && volume ? (parseFloat(unitPrice) * parseFloat(volume)) : null;
 
   useEffect(() => {
@@ -105,7 +114,6 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
 
   const handleNext = () => {
     if (currentStep < 6) {
-      setAnimDir("forward");
       setCurrentStep(s => s + 1);
     } else {
       onComplete({
@@ -132,7 +140,6 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setAnimDir("back");
       setCurrentStep(s => s - 1);
     } else {
       onBack();
@@ -149,25 +156,29 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="targetProfit">Target Profit</Label>
-              <NairaInput id="targetProfit" value={targetProfit} onChange={setTargetProfit} placeholder="e.g. 500000" />
-            </div>
-            <div className="space-y-2">
-              <Label>Period</Label>
-              <Select value={period} onValueChange={(v: "monthly" | "yearly") => setPeriod(v)}>
+              <Label>First, what time period are we planning for?</Label>
+              <Select value={period} onValueChange={(v: DialoguePeriod) => setPeriod(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">All numbers you enter from here will be {period}.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="targetProfit">How much profit do you want to make per {periodWord}?</Label>
+              <NairaInput id="targetProfit" value={targetProfit} onChange={setTargetProfit} placeholder="e.g. 500000" />
+              <p className="text-xs text-muted-foreground">This is the money you want left after paying all costs.</p>
             </div>
           </div>
         );
       case 1:
         return (
           <div className="space-y-2">
-            <Label>Industry</Label>
+            <Label>What industry or business are you in?</Label>
             <Select value={industry} onValueChange={setIndustry}>
               <SelectTrigger><SelectValue placeholder="Select your industry" /></SelectTrigger>
               <SelectContent>
@@ -181,19 +192,23 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
       case 2:
         return (
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">Enter the cost per unit. Fill at least one field.</p>
+            <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                ⚡ Enter the cost to produce ONE unit — not your total. Fill at least one field.
+              </p>
+            </div>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="material">Material Cost per Unit</Label>
-                <NairaInput id="material" value={materialCost} onChange={setMaterialCost} />
+                <Label htmlFor="material">Material cost per ONE unit</Label>
+                <NairaInput id="material" value={materialCost} onChange={setMaterialCost} placeholder="Cost of raw materials for one item" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="labour">Labour Cost per Unit</Label>
-                <NairaInput id="labour" value={labourCost} onChange={setLabourCost} />
+                <Label htmlFor="labour">Labour cost per ONE unit</Label>
+                <NairaInput id="labour" value={labourCost} onChange={setLabourCost} placeholder="Wages/work to make one item" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="othervc">Other Variable Cost per Unit</Label>
-                <NairaInput id="othervc" value={otherVC} onChange={setOtherVC} />
+                <Label htmlFor="othervc">Other cost per ONE unit</Label>
+                <NairaInput id="othervc" value={otherVC} onChange={setOtherVC} placeholder="Packaging, delivery per item, etc." />
               </div>
             </div>
           </div>
@@ -201,22 +216,24 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
       case 3:
         return (
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">Enter your {period} fixed expenses. Fill at least one field.</p>
+            <p className="text-xs text-muted-foreground">
+              These are bills you pay every {periodWord} <span className="font-medium">whether you sell anything or not</span>. Fill at least one.
+            </p>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="rent">Rent</Label>
+                <Label htmlFor="rent">Rent (per {periodWord})</Label>
                 <NairaInput id="rent" value={rent} onChange={setRent} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="depreciation">Equipment Depreciation</Label>
+                <Label htmlFor="depreciation">Equipment depreciation (per {periodWord})</Label>
                 <NairaInput id="depreciation" value={depreciation} onChange={setDepreciation} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="admin">Administrative Costs</Label>
+                <Label htmlFor="admin">Admin costs — salaries, utilities, software (per {periodWord})</Label>
                 <NairaInput id="admin" value={adminCost} onChange={setAdminCost} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="otherfc">Other Fixed Costs</Label>
+                <Label htmlFor="otherfc">Other fixed costs (per {periodWord})</Label>
                 <NairaInput id="otherfc" value={otherFC} onChange={setOtherFC} />
               </div>
             </div>
@@ -225,14 +242,15 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
       case 4:
         return (
           <div className="space-y-2">
-            <Label htmlFor="unitPrice">Selling Price per Unit</Label>
+            <Label htmlFor="unitPrice">How much do you charge a customer for ONE unit?</Label>
             <NairaInput id="unitPrice" value={unitPrice} onChange={setUnitPrice} placeholder="e.g. 2500" />
+            <p className="text-xs text-muted-foreground">Your sticker price for a single item.</p>
           </div>
         );
       case 5:
         return (
           <div className="space-y-2">
-            <Label htmlFor="volume">Estimated Volume ({period})</Label>
+            <Label htmlFor="volume">How many units will you sell per {periodWord}?</Label>
             <Input
               id="volume"
               type="number"
@@ -241,21 +259,22 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
               onChange={e => setVolume(e.target.value)}
               placeholder="e.g. 1000"
             />
+            <p className="text-xs text-muted-foreground">Your realistic sales target for one {periodWord}.</p>
           </div>
         );
       case 6:
         return (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="revenue">Expected Revenue ({period})</Label>
+              <Label htmlFor="revenue">Total money you expect to earn per {periodWord}</Label>
               <NairaInput id="revenue" value={expectedRevenue} onChange={setExpectedRevenue} />
             </div>
             {autoRevenue && (
               <p className="text-xs text-muted-foreground">
-                Based on your inputs: ₦{autoRevenue.toLocaleString()} (Price × Volume)
+                Suggested: ₦{autoRevenue.toLocaleString()} (Price × Volume)
                 {expectedRevenue !== autoRevenue.toString() && (
                   <Button variant="link" size="sm" className="h-auto p-0 ml-1 text-xs" onClick={() => setExpectedRevenue(autoRevenue.toString())}>
-                    Use this value
+                    Use this
                   </Button>
                 )}
               </p>
@@ -269,7 +288,6 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      {/* Progress */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Step {currentStep + 1} of {STEPS.length}</span>
@@ -278,14 +296,9 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
         <Progress value={progress} className="h-2" />
       </div>
 
-      {/* Question Card */}
       <Card className="overflow-hidden border-primary/20 shadow-lg">
         <CardContent className="p-6 sm:p-8">
-          <div
-            key={currentStep}
-            className="animate-fade-in space-y-6"
-          >
-            {/* Header */}
+          <div key={currentStep} className="animate-fade-in space-y-6">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                 <Icon className="h-6 w-6 text-primary" />
@@ -295,18 +308,15 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
                 <p className="text-sm text-muted-foreground">{step.description}</p>
               </div>
             </div>
-
-            {/* Content */}
             {renderStepContent()}
           </div>
         </CardContent>
       </Card>
 
-      {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-1" />
-          {currentStep === 0 ? "Exit" : "Back"}
+          {currentStep === 0 ? "Back" : "Previous"}
         </Button>
         <Button onClick={handleNext} disabled={!canProceed()}>
           {currentStep === 6 ? (
