@@ -53,6 +53,9 @@ serve(async (req) => {
     if (isDialogueOnly) {
       // ── Dialogue-only mode ──
       const da = dialogueAnswers;
+      // Period normalization → keep math in user's chosen period (no conversion needed
+      // since fixed costs and volume are both stated in the same period).
+      // We simply trust the user's stated period for revenue/profit framing.
       const vcPerUnit = (da.variableCosts.material || 0) + (da.variableCosts.labour || 0) + (da.variableCosts.other || 0);
       totalFixedCosts = (da.fixedCosts.rent || 0) + (da.fixedCosts.depreciation || 0) + (da.fixedCosts.admin || 0) + (da.fixedCosts.other || 0);
       pricePerUnit = da.unitPrice || 0;
@@ -84,6 +87,7 @@ serve(async (req) => {
         degreeOfOperatingLeverage,
         marginOfSafety,
         marginOfSafetyPercent,
+        period: da.period || 'monthly',
       };
       rowCount = currentVolume;
     } else {
@@ -196,11 +200,12 @@ serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       if (LOVABLE_API_KEY) {
         const industryCtx = dialogueAnswers?.industry ? `\nIndustry: ${dialogueAnswers.industry}` : '';
+        const periodCtx = dialogueAnswers?.period ? `\nReporting Period: ${dialogueAnswers.period}` : '';
         const targetCtx = dialogueAnswers?.targetProfit
-          ? `\nTarget Profit: ₦${dialogueAnswers.targetProfit.toLocaleString()} (${dialogueAnswers.period})`
+          ? `\nTarget Profit: ₦${dialogueAnswers.targetProfit.toLocaleString()} (per ${dialogueAnswers.period || 'period'})`
           : '';
 
-        const prompt = `You are an expert financial analyst. Analyze the following CVP (Cost-Volume-Profit) data and provide actionable prescriptive insights for a business owner.${industryCtx}${targetCtx}
+        const prompt = `You are an expert financial analyst. Analyze the following CVP (Cost-Volume-Profit) data and provide actionable prescriptive insights for a business owner. Use plain, friendly language a non-finance owner can understand.${industryCtx}${periodCtx}${targetCtx}
 
 DATA:
 - Total Revenue: ₦${cvpResults.totalRevenue.toFixed(2)}
