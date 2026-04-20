@@ -761,7 +761,8 @@ const Dashboard = () => {
                                     <ToolsGrid 
                                         onToolSelect={(toolId) => {
                                             setSelectedTool(toolId);
-                                            if (toolId !== "spreadsheet-analyzer") {
+                                            const activeTools = ["spreadsheet-analyzer", "cvp-analyzer"];
+                                            if (!activeTools.includes(toolId)) {
                                                 toast({
                                                     title: "Coming Soon!",
                                                     description: `The ${toolId.replace(/-/g, ' ')} tool is currently under development.`,

@@ -57,3 +57,6 @@ verify_jwt = false
 
 [functions.analyze-profitpro]
 verify_jwt = true
+
+[functions.profitpro-chat]
+verify_jwt = true

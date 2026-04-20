@@ -176,32 +176,33 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
 
   // Plain-language interpretations
   const cmRupiah = Math.round(r.contributionMarginRatio * 100);
+  type Tone = "good" | "warn" | "bad" | "neutral";
   const cmCard = {
     big: `₦${cmRupiah}`,
     label: `Out of every ₦100 you earn, ${cmRupiah > 0 ? `₦${cmRupiah} is yours after the cost of making each unit` : "you lose money on every sale"}`,
     tooltip: `Contribution Margin Ratio: ${(r.contributionMarginRatio * 100).toFixed(1)}%`,
-    tone: cmRupiah > 40 ? "good" : cmRupiah > 20 ? "warn" : "bad" as const,
+    tone: (cmRupiah > 40 ? "good" : cmRupiah > 20 ? "warn" : "bad") as Tone,
   };
 
   const beUnitsCard = {
     big: fmtUnits(r.breakEvenUnits),
     label: `Sell this many to cover all your costs (you're at ${fmtUnits(r.currentVolume)})`,
     tooltip: "Break-Even Point in Units",
-    tone: r.currentVolume >= r.breakEvenUnits ? "good" : "warn" as const,
+    tone: (r.currentVolume >= r.breakEvenUnits ? "good" : "warn") as Tone,
   };
 
   const beRevenueCard = {
     big: fmt(r.breakEvenRevenue),
     label: "Earn this much per period to break even",
     tooltip: "Break-Even Revenue",
-    tone: r.totalRevenue >= r.breakEvenRevenue ? "good" : "warn" as const,
+    tone: (r.totalRevenue >= r.breakEvenRevenue ? "good" : "warn") as Tone,
   };
 
   const profitCard = {
     big: fmt(r.operatingIncome),
     label: isLoss ? "You're currently losing this much" : "Your profit right now",
     tooltip: "Operating Income (Revenue − All Costs)",
-    tone: isLoss ? "bad" : "good" as const,
+    tone: (isLoss ? "bad" : "good") as Tone,
   };
 
   const mosCard = {
@@ -210,7 +211,7 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
       ? `Sales can drop this much before you stop making profit`
       : "You're below break-even — every sale matters",
     tooltip: "Margin of Safety",
-    tone: r.marginOfSafetyPercent > 0.2 ? "good" : r.marginOfSafetyPercent > 0 ? "warn" : "bad" as const,
+    tone: (r.marginOfSafetyPercent > 0.2 ? "good" : r.marginOfSafetyPercent > 0 ? "warn" : "bad") as Tone,
   };
 
   const prescriptions = Array.isArray(aiInsights?.prescriptions) ? aiInsights.prescriptions : [];
