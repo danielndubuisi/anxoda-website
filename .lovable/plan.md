@@ -1,117 +1,100 @@
 
 
-## ProfitPro Dialogue Layer: AI-First Conversational Onboarding
+## ProfitPro Polish: Welcome Screen, Clearer Questions, What-If Sandbox & AI Chat
 
-Transform ProfitPro from a "select data first" tool into an AI-driven dialogue experience. Users answer guided business questions first, get immediate AI insights and a break-even chart from their answers alone, then optionally connect data to refine.
+Six fixes that turn ProfitPro into a delightful, intuitive, end-to-end experience.
 
-### New Flow
+### 1. Remove the "Coming Soon" toast on click (Dashboard)
 
-```text
-User clicks ProfitPro
-         │
-         ▼
-┌──────────────────────────────┐
-│  Dialogue Step 1-7           │
-│  Beautiful card-based Q&A    │
-│  One question at a time      │
-│  Progress bar + animations   │
-└──────────┬───────────────────┘
-           ▼
-┌──────────────────────────────┐
-│  "Thinking" Animation Modal  │
-│  3-4 second branded loading  │
-└──────────┬───────────────────┘
-           ▼
-┌──────────────────────────────┐
-│  AI Instant Insights         │
-│  - Break-even chart (from    │
-│    dialogue answers alone)   │
-│  - CVP metrics cards         │
-│  - Prescriptive insights     │
-│  - CTA: "Connect data for    │
-│    deeper analysis"          │
-└──────────┬───────────────────┘
-           ▼ (optional)
-┌──────────────────────────────┐
-│  Existing flow: Select Data  │
-│  → Map Fields → Full Results │
-└──────────────────────────────┘
-```
+In `src/pages/Dashboard.tsx`, the `ToolsGrid.onToolSelect` handler currently fires a "Coming Soon!" toast for every tool that isn't `spreadsheet-analyzer` — including the now-active `cvp-analyzer`. Update the condition to also exclude `cvp-analyzer` so opening ProfitPro launches cleanly with no popup.
 
-### Dialogue Questions (from the PDF)
+### 2. Welcome screen as first thing users see
 
-7 steps, one question per screen with engaging UI:
+Create **`ProfitProWelcome.tsx`** — a beautiful, animated landing card shown before the dialogue:
 
-1. **Target Profit** - "What profit do you plan to make?" + period selector (Monthly/Yearly)
-2. **Industry** - "What industry or business are you in?" (searchable dropdown with common industries)
-3. **Variable Costs** - Material cost per unit, Labour cost per unit, Other variable cost per unit (3 inputs with ₦ prefix)
-4. **Fixed Costs** - Rent, Equipment depreciation, Administrative costs, Other (4 inputs with ₦ prefix, for the selected period)
-5. **Unit Selling Price** - "At what price do you sell one unit of your product?" (single ₦ input)
-6. **Estimated Volume** - "How many units do you expect to sell in this period?" (number input)
-7. **Expected Revenue** - "How much do you expect to generate from sales?" (₦ input, auto-calculated hint from price x volume)
+- Large gradient hero icon (Sparkles + TrendingUp), tagline: **"Know your numbers. Grow your profit."**
+- One-paragraph plain-English explainer: _"Answer 7 quick questions about your business and get instant AI-powered insights — break-even point, profit forecasts, and tailored recommendations. No spreadsheets needed to start."_
+- Three small feature pills with icons: **Instant Insights · Break-Even Chart · AI Coach**
+- Two CTAs: **"Let's Get Started →"** (primary) and **"Back to Tools"** (ghost)
+- Subtle floating/pulse animations using existing Tailwind keyframes (`fade-in`, `scale-in`, `animate-pulse`)
 
-### What Gets Built
+Wire it in `ProfitProWorkflow.tsx` as a new initial step: `welcome → dialogue → thinking → insights → ...`
 
-#### 1. `src/components/profitpro/ProfitProDialogue.tsx` (NEW)
+### 3. Simpler, friendlier insight cards
 
-The main dialogue component:
-- Renders one question at a time with fade/slide transitions
-- Progress bar at top showing step X of 7
-- Each question has a title, description, themed icon, and input fields
-- "Continue" button advances; "Back" goes to previous question
-- Inputs use ₦ currency formatting where appropriate
-- On completion, triggers the AI analysis with all collected answers
+Rewrite `ProfitProInsights.tsx` metric cards in plain language a non-finance owner instantly grasps:
 
-#### 2. `src/components/profitpro/ProfitProThinking.tsx` (NEW)
+| Old (jargon) | New (plain) |
+|---|---|
+| Contribution Margin (45.2%) | **For every ₦100 you earn, ₦45 is yours after costs** |
+| Break-Even (Units) | **Sell this many to cover your costs** |
+| Break-Even (Revenue) | **Earn this much to break even** |
+| Operating Income | **Your profit / loss right now** |
+| Margin of Safety | **How far you are above break-even** |
+| Operating Leverage | _(moved to an "Advanced" toggle)_ |
 
-Branded "thinking" animation shown while AI processes:
-- Animated brain/chart icon with pulse effect
-- Rotating status messages ("Calculating break-even point...", "Analyzing cost structure...", "Generating prescriptions...")
-- 3-5 second minimum display even if API returns faster (for UX polish)
+Each card: big bold number, one-line plain-English label below, color-coded (green good / amber caution / red warning), tiny info-tooltip with the technical name for those who want it.
 
-#### 3. `src/components/profitpro/ProfitProInsights.tsx` (NEW)
+### 4. Crystal-clear question framing
 
-Instant insights page from dialogue answers alone (no spreadsheet needed):
-- Break-even chart built from the user's manual inputs (price, variable costs, fixed costs, volume)
-- CVP metric cards (contribution margin, BEP units, BEP revenue, margin of safety, DOL)
-- AI prescriptive insights panel (generated by the edge function)
-- Call-to-action card: "Connect your data for deeper, more accurate analysis" which leads to the existing data connection flow
+Update `ProfitProDialogue.tsx` so every monetary or volume question explicitly states the period being asked:
 
-#### 4. Update `ProfitProWorkflow.tsx`
+- Step 1 (Target Profit): **Period selector becomes "Daily / Weekly / Monthly / Yearly"** _before_ the amount, and the amount label dynamically reads **"How much profit do you want to make per [month]?"**
+- Step 3 (Variable Costs): label shows **"Cost to make ONE unit"** with a sub-line **"(Not your total — just one item)"**
+- Step 4 (Fixed Costs): each input label appends the chosen period, e.g. **"Rent (per month)"**, **"Admin costs (per month)"**
+- Step 5 (Unit Price): **"How much do you charge a customer for ONE unit?"**
+- Step 6 (Volume): **"How many units will you sell per [month]?"**
+- Step 7 (Revenue): **"Total money you expect to earn per [month]"**
 
-- Add a new initial step: `"dialogue"` before `"select"`
-- After dialogue completion + AI response, show `ProfitProInsights`
-- "Connect Data" CTA from insights leads to the existing `"select"` step
-- Dialogue answers are passed to the edge function alongside any data source for enhanced context
+The selected period propagates through every subsequent step's label and gets passed to the edge function so calculations stay consistent. Volume is normalized server-side: daily × 30 → monthly equivalent, weekly × ~4.33 → monthly, yearly ÷ 12 → monthly. (We standardize internally to monthly for math, but display labels use the user's chosen period.)
 
-#### 5. Update `supabase/functions/analyze-profitpro/index.ts`
+### 5. What-If Scenario Sandbox
 
-Add a new mode: **dialogue-only analysis**
-- Accept `dialogueAnswers` in the request body (targetProfit, industry, variableCosts breakdown, fixedCosts breakdown, unitPrice, volume, expectedRevenue)
-- When `dialogueAnswers` is provided without a `sourceReportId`, compute CVP metrics directly from the dialogue values (no file download needed)
-- Include dialogue context (industry, target profit, period) in the AI prompt for richer, more relevant prescriptions
-- When both `dialogueAnswers` AND `sourceReportId` are provided, use the dialogue as context but use the spreadsheet data for actual calculations
+Add a new **"What If?"** tab inside `ProfitProInsights.tsx` (alongside Break-Even Chart, AI Insights, Prescriptions):
 
-#### 6. Update CVPDashboard formatting
+- Four sliders (and number inputs for precision):
+  - **Selling Price per Unit** (±50% range)
+  - **Variable Cost per Unit** (±50%)
+  - **Fixed Costs** (±50%)
+  - **Volume** (±100%)
+- A **"Reset to my numbers"** button
+- Live-updating mini break-even chart (re-uses the same `ComposedChart`) recalculates client-side as sliders move — no server round-trip
+- Live metric strip below the sliders shows the new BEP, profit, and margin of safety with **delta badges** (e.g., +₦120K profit, -200 units BEP)
+- Color cue: green when scenario is better than baseline, red when worse
+- Small "Save this scenario" button (Phase 2 — for now disabled with a "coming soon" tooltip)
 
-- Change `$` to `₦` in the `fmt()` function and the AI prompt in the edge function
+All math is pure client-side TypeScript using the same CVP formulas already in the edge function — instant, no API cost.
 
-### Files Changed/Created
+### 6. "Chat with your Coach" CTA → AI chat
+
+After the insights view, add a prominent **"Chat with your AI Profit Coach →"** card (gradient background, MessageSquare icon). Clicking opens a new step `chat`:
+
+- Create **`ProfitProChat.tsx`** — a focused chat interface (similar pattern to `AIChatbot.tsx`) seeded with the user's full context: dialogue answers, computed CVP results, AI prescriptions, industry, period
+- Uses **`react-markdown`** for AI response rendering (per project chatbot pattern)
+- Suggested starter prompts as clickable chips: _"Why is my break-even so high?"_ · _"How can I improve my margin?"_ · _"What should I do first?"_ · _"Is my pricing right for my industry?"_
+- Calls a new edge function **`profitpro-chat`** that streams responses from the Lovable AI Gateway (`google/gemini-2.5-flash`), with a system prompt grounding the model in the user's specific numbers and the prescriptive-insights pattern (Title, What to do, Why it matters, Expected outcome)
+- Sends full message history each turn (per chatbot best practices)
+- Back button returns to insights; user's chat history persists in component state for the session
+
+### Files Changed / Created
 
 | File | Action |
-|------|--------|
-| `src/components/profitpro/ProfitProDialogue.tsx` | Create - 7-step conversational Q&A |
-| `src/components/profitpro/ProfitProThinking.tsx` | Create - Branded loading animation |
-| `src/components/profitpro/ProfitProInsights.tsx` | Create - Instant insights from dialogue |
-| `src/components/profitpro/ProfitProWorkflow.tsx` | Update - Add dialogue as first step, wire new flow |
-| `src/components/profitpro/CVPDashboard.tsx` | Update - ₦ currency formatting |
-| `supabase/functions/analyze-profitpro/index.ts` | Update - Support dialogue-only mode, ₦ in AI prompt |
+|---|---|
+| `src/pages/Dashboard.tsx` | Remove the "Coming Soon" toast for `cvp-analyzer` |
+| `src/components/profitpro/ProfitProWelcome.tsx` | **Create** — animated welcome screen |
+| `src/components/profitpro/ProfitProDialogue.tsx` | Rewrite question copy + add Daily/Weekly/Monthly/Yearly period; dynamic labels |
+| `src/components/profitpro/ProfitProInsights.tsx` | Plain-language cards + new What-If tab + Chat CTA card |
+| `src/components/profitpro/ProfitProChat.tsx` | **Create** — contextual AI coach chat UI |
+| `src/components/profitpro/ProfitProWorkflow.tsx` | Add `welcome` and `chat` steps; wire flow |
+| `supabase/functions/analyze-profitpro/index.ts` | Accept Daily/Weekly period; normalize to monthly for math |
+| `supabase/functions/profitpro-chat/index.ts` | **Create** — streaming AI coach grounded in user CVP context |
+| `supabase/config.toml` | Register new edge function |
 
-### Technical Details
+### Technical Notes
 
-- Dialogue answers stored in component state as a typed object, passed to edge function as `dialogueAnswers`
-- CVP calculation from dialogue: totalVC = (material + labour + other) * volume; totalFC = rent + depreciation + admin + other; revenue = price * volume
-- Break-even chart uses same Recharts `ComposedChart` as CVPDashboard but built from dialogue inputs
-- The "thinking" animation uses CSS keyframes with `animate-pulse` and staggered text rotation via `setInterval`
-- AI prompt enhanced with industry context and target profit for more relevant prescriptions
+- The What-If tab uses pure functional CVP formulas duplicated client-side (CM = price − VC/unit; BEP units = FC / CM; etc.) — kept in a small `lib/cvpMath.ts` helper so client and server stay in sync conceptually
+- Period normalization factor map: `{ daily: 30, weekly: 4.333, monthly: 1, yearly: 1/12 }` — multiply user input by factor to get monthly equivalent for internal math
+- `react-markdown` is already used in `AIChatbot.tsx`; reuse the same pattern
+- Welcome screen uses existing tailwind animations (`animate-fade-in`, `animate-scale-in`) — no new keyframes needed
+- Chat edge function follows the same auth + LOVABLE_API_KEY pattern as `chatbot/index.ts`, but is **authenticated** (verify_jwt = true) since it uses private user financial data
 
