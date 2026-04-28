@@ -60,3 +60,6 @@ verify_jwt = true
 
 [functions.profitpro-chat]
 verify_jwt = true
+
+[functions.suggest-product-costs]
+verify_jwt = true

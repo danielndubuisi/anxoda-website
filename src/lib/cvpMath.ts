@@ -62,3 +62,23 @@ export const PERIOD_FACTORS = {
 } as const;
 
 export type Period = keyof typeof PERIOD_FACTORS;
+
+/**
+ * Units required to reach a specific target profit.
+ * Returns Infinity when the contribution margin is zero or negative.
+ */
+export function unitsForTargetProfit({
+  pricePerUnit,
+  variableCostPerUnit,
+  fixedCosts,
+  targetProfit,
+}: {
+  pricePerUnit: number;
+  variableCostPerUnit: number;
+  fixedCosts: number;
+  targetProfit: number;
+}): number {
+  const cm = pricePerUnit - variableCostPerUnit;
+  if (cm <= 0) return Infinity;
+  return Math.ceil((fixedCosts + Math.max(0, targetProfit)) / cm);
+}
