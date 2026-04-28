@@ -60,7 +60,8 @@ serve(async (req) => {
       totalFixedCosts = (da.fixedCosts.rent || 0) + (da.fixedCosts.depreciation || 0) + (da.fixedCosts.admin || 0) + (da.fixedCosts.other || 0);
       pricePerUnit = da.unitPrice || 0;
       currentVolume = da.volume || 0;
-      totalRevenue = da.expectedRevenue || (pricePerUnit * currentVolume);
+      // Revenue is always derived from price × volume (the explicit "expected revenue" question was removed)
+      totalRevenue = pricePerUnit * currentVolume;
       totalVariableCosts = vcPerUnit * currentVolume;
 
       const contributionMargin = totalRevenue - totalVariableCosts;
@@ -238,7 +239,9 @@ Respond ONLY with a JSON object (no markdown) with this structure:
   ]
 }
 
-Provide 3-5 prescriptions. Be specific with numbers. Use ₦ for currency. If DOL is negative, emphasize urgency of reaching break-even.${dialogueAnswers?.targetProfit ? ` Factor in their target profit of ₦${dialogueAnswers.targetProfit.toLocaleString()} when making recommendations.` : ''}`;
+Provide 3-5 prescriptions. Be specific with numbers. Use ₦ for currency. If DOL is negative, emphasize urgency of reaching break-even.
+
+CRITICAL FRAMING: The owner's #1 question is "How many units must I sell to be profitable AND hit my goal?" Always reference (a) the minimum-profitable volume (break-even units) and (b) the target-profit volume = (fixedCosts + targetProfit) / (price - vcPerUnit) in plain language. If current price is outside typical market range, suggest a price adjustment.${dialogueAnswers?.targetProfit ? ` Their target profit is ₦${dialogueAnswers.targetProfit.toLocaleString()} per ${dialogueAnswers.period || 'period'}.` : ''}${dialogueAnswers?.productName ? ` Their product/service: "${dialogueAnswers.productName}".` : ''}`;
 
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',

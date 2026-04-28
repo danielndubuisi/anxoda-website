@@ -244,6 +244,9 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
       <ProfitProInsights
         cvpResults={dialogueCvpResults}
         aiInsights={dialogueAiInsights}
+        targetProfit={dialogueAnswers?.targetProfit}
+        period={dialogueAnswers?.period}
+        productName={dialogueAnswers?.productName}
         onConnectData={() => setStep("select")}
         onChat={() => setStep("chat")}
         onBack={() => setStep("dialogue")}

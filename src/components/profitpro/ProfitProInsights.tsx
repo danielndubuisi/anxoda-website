@@ -7,13 +7,13 @@ import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertTriangle, ArrowLeft, Database, Sparkles, Info, MessageSquare,
-  TrendingUp, TrendingDown, RotateCcw, ArrowRight,
+  TrendingUp, TrendingDown, RotateCcw, ArrowRight, Target, Trophy,
 } from "lucide-react";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, ReferenceLine, Legend, Line, ComposedChart,
 } from "recharts";
-import { computeCVP } from "@/lib/cvpMath";
+import { computeCVP, unitsForTargetProfit } from "@/lib/cvpMath";
 
 interface CVPResults {
   totalRevenue: number;
@@ -47,6 +47,9 @@ interface ProfitProInsightsProps {
     prescriptions?: Prescription[];
     keyFindings?: string[];
   } | null;
+  targetProfit?: number;
+  period?: string;
+  productName?: string;
   onConnectData: () => void;
   onChat: () => void;
   onBack: () => void;
@@ -135,7 +138,10 @@ const PlainCard = ({
   );
 };
 
-export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, onChat, onBack, onNewAnalysis }: ProfitProInsightsProps) => {
+export const ProfitProInsights = ({
+  cvpResults: r, aiInsights, targetProfit = 0, period = "period", productName,
+  onConnectData, onChat, onBack, onNewAnalysis,
+}: ProfitProInsightsProps) => {
   // Baseline numbers
   const basePrice = r.totalRevenue / (r.currentVolume || 1);
   const baseVcPerUnit = r.totalVariableCosts / (r.currentVolume || 1);
@@ -173,6 +179,44 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
   const beDelta = scenario.breakEvenUnits - r.breakEvenUnits;
 
   const isLoss = r.operatingIncome < 0;
+
+  // Target-profit volume — baseline & scenario
+  const baseTargetUnits = unitsForTargetProfit({
+    pricePerUnit: basePrice, variableCostPerUnit: baseVcPerUnit,
+    fixedCosts: baseFc, targetProfit,
+  });
+  const scenarioTargetUnits = unitsForTargetProfit({
+    pricePerUnit: scPrice, variableCostPerUnit: scVc,
+    fixedCosts: scFc, targetProfit,
+  });
+  const targetUnitsDelta = scenarioTargetUnits - baseTargetUnits;
+
+  const matchMyGoal = () => {
+    if (isFinite(scenarioTargetUnits)) setScVol(scenarioTargetUnits);
+  };
+
+  // Verdict for What-If
+  const goalGap = scenario.operatingIncome - targetProfit;
+  let verdictTone: "good" | "warn" | "bad" = "warn";
+  let verdictMsg = "";
+  if (scenario.operatingIncome < 0) {
+    verdictTone = "bad";
+    verdictMsg = `You'd still lose ${fmt(Math.abs(scenario.operatingIncome))}. Try raising price or volume.`;
+  } else if (targetProfit > 0 && goalGap >= 0) {
+    verdictTone = "good";
+    verdictMsg = `You'd profit ${fmt(scenario.operatingIncome)} — that's ${fmt(goalGap)} above your goal of ${fmt(targetProfit)}.`;
+  } else if (targetProfit > 0) {
+    verdictTone = "warn";
+    verdictMsg = `You'd cover costs but fall ${fmt(Math.abs(goalGap))} short of your ${fmt(targetProfit)} goal.`;
+  } else {
+    verdictTone = "good";
+    verdictMsg = `You'd profit ${fmt(scenario.operatingIncome)} per ${period}.`;
+  }
+  const verdictClasses = {
+    good: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    warn: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    bad: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
+  }[verdictTone];
 
   // Plain-language interpretations
   const cmRupiah = Math.round(r.contributionMarginRatio * 100);
@@ -225,13 +269,59 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
           <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold">Your ProfitPro Insights</h2>
-              <Badge variant="secondary" className="text-xs"><Sparkles className="h-3 w-3 mr-1" /> AI-Powered</Badge>
+              <h2 className="text-xl font-bold">Your Profit Path</h2>
             </div>
-            <p className="text-sm text-muted-foreground">Plain-English snapshot of your business</p>
+            <p className="text-sm text-muted-foreground">
+              {productName ? <>For <span className="font-medium text-foreground">{productName}</span></> : "What it takes to be profitable"}
+            </p>
           </div>
         </div>
         <Button variant="outline" onClick={onNewAnalysis}>Start Over</Button>
+      </div>
+
+      {/* Path to Profit hero — minimum profitable volume + target volume */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Card className="border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-md overflow-hidden">
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center gap-2 text-primary">
+              <Target className="h-5 w-5" />
+              <span className="text-xs font-semibold uppercase tracking-wide">Minimum to be profitable</span>
+            </div>
+            <p className="text-3xl font-bold">
+              {isFinite(r.breakEvenUnits) && r.breakEvenUnits > 0 ? fmtUnits(r.breakEvenUnits) : "—"}
+              <span className="text-base font-medium text-muted-foreground ml-1">units / {period}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {isFinite(r.breakEvenUnits) && r.breakEvenUnits > 0 ? (
+                <>Sell at least this many at {fmt(basePrice)} each — about {fmt(r.breakEvenRevenue)} in revenue.</>
+              ) : (
+                <>Your price is below the cost to make one unit. Raise your price to make profit possible.</>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent shadow-md overflow-hidden">
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <Trophy className="h-5 w-5" />
+              <span className="text-xs font-semibold uppercase tracking-wide">To hit your goal</span>
+            </div>
+            <p className="text-3xl font-bold">
+              {isFinite(baseTargetUnits) ? fmtUnits(baseTargetUnits) : "—"}
+              <span className="text-base font-medium text-muted-foreground ml-1">units / {period}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {targetProfit > 0 ? (
+                isFinite(baseTargetUnits)
+                  ? <>Sell this many to make {fmt(targetProfit)} profit per {period}.</>
+                  : <>Not possible at current price — raise your price or cut costs.</>
+              ) : (
+                <>Set a profit goal in the dialogue to see this.</>
+              )}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Loss Warning */}
@@ -242,7 +332,7 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
             <div>
               <p className="font-semibold text-red-600 dark:text-red-400">You're below break-even</p>
               <p className="text-sm text-muted-foreground">
-                Right now you're losing money. Use the prescriptions and What If? tab to find your path to profit.
+                At your current numbers you're losing money. Use the What If? tab to test prices and volumes that would turn this around.
               </p>
             </div>
           </CardContent>
@@ -252,32 +342,27 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
       {/* Plain-language metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <PlainCard {...cmCard} />
-        <PlainCard {...beUnitsCard} />
-        <PlainCard {...beRevenueCard} />
         <PlainCard {...profitCard} />
         <PlainCard {...mosCard} />
-        {/* Advanced metric — DOL — kept subtle */}
-        <Card className="border-dashed">
-          <CardContent className="p-4 space-y-1.5">
-            <p className="text-2xl font-bold text-muted-foreground">{r.degreeOfOperatingLeverage.toFixed(2)}x</p>
-            <div className="flex items-start gap-1">
-              <p className="text-xs text-muted-foreground leading-snug flex-1">
-                <span className="font-medium">Advanced:</span> How sensitive your profit is to sales changes
-              </p>
-              <TooltipProvider delayDuration={150}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 mt-0.5 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px] text-xs">
-                    Degree of Operating Leverage. {r.degreeOfOperatingLeverage > 0 ? `A 10% rise in sales lifts profit by ~${(r.degreeOfOperatingLeverage * 10).toFixed(0)}%.` : "Negative — you're below break-even."}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      <details className="text-sm">
+        <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+          Show advanced metrics
+        </summary>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <PlainCard {...beRevenueCard} />
+          <Card className="border-dashed">
+            <CardContent className="p-4 space-y-1.5">
+              <p className="text-2xl font-bold text-muted-foreground">{r.degreeOfOperatingLeverage.toFixed(2)}x</p>
+              <p className="text-xs text-muted-foreground leading-snug">
+                <span className="font-medium">Operating Leverage:</span> How sensitive your profit is to sales changes.
+                {r.degreeOfOperatingLeverage > 0 && ` A 10% sales rise lifts profit by ~${(r.degreeOfOperatingLeverage * 10).toFixed(0)}%.`}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </details>
 
       <Tabs defaultValue="chart">
         <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto">
@@ -320,14 +405,26 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-base">Play with the numbers</CardTitle>
-                  <p className="text-xs text-muted-foreground">Drag the sliders to see how changes affect your profit & break-even.</p>
+                  <p className="text-xs text-muted-foreground">Test changes to price, costs, or volume — see how they affect your path to profit.</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={resetScenario}>
-                  <RotateCcw className="h-3 w-3 mr-1" /> Reset
-                </Button>
+                <div className="flex items-center gap-2">
+                  {targetProfit > 0 && isFinite(scenarioTargetUnits) && (
+                    <Button variant="default" size="sm" onClick={matchMyGoal}>
+                      <Target className="h-3 w-3 mr-1" /> Match my goal
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={resetScenario}>
+                    <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Verdict banner */}
+              <div className={`rounded-md border p-3 text-sm font-medium ${verdictClasses}`}>
+                {verdictMsg}
+              </div>
+
               {/* Sliders */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <SliderRow
@@ -358,9 +455,27 @@ export const ProfitProInsights = ({ cvpResults: r, aiInsights, onConnectData, on
 
               {/* Live deltas */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <DeltaCard label="New profit" value={fmt(scenario.operatingIncome)} delta={profitDelta} fmtDelta={fmt} better={profitDelta >= 0} />
-                <DeltaCard label="New break-even" value={`${fmtUnits(scenario.breakEvenUnits)} units`} delta={beDelta} fmtDelta={(v) => `${v >= 0 ? "+" : ""}${fmtUnits(v)}`} better={beDelta <= 0} />
-                <DeltaCard label="Margin of safety" value={`${(scenario.marginOfSafetyPercent * 100).toFixed(0)}%`} delta={(scenario.marginOfSafetyPercent - r.marginOfSafetyPercent) * 100} fmtDelta={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}pp`} better={(scenario.marginOfSafetyPercent - r.marginOfSafetyPercent) >= 0} />
+                <DeltaCard
+                  label="Profit vs your goal"
+                  value={targetProfit > 0 ? fmt(scenario.operatingIncome - targetProfit) : fmt(scenario.operatingIncome)}
+                  delta={profitDelta}
+                  fmtDelta={fmt}
+                  better={profitDelta >= 0}
+                />
+                <DeltaCard
+                  label="Units to break even"
+                  value={isFinite(scenario.breakEvenUnits) ? fmtUnits(scenario.breakEvenUnits) : "—"}
+                  delta={beDelta}
+                  fmtDelta={(v) => `${v >= 0 ? "+" : ""}${fmtUnits(v)}`}
+                  better={beDelta <= 0}
+                />
+                <DeltaCard
+                  label="Units to hit goal"
+                  value={isFinite(scenarioTargetUnits) ? fmtUnits(scenarioTargetUnits) : "—"}
+                  delta={targetUnitsDelta}
+                  fmtDelta={(v) => `${v >= 0 ? "+" : ""}${fmtUnits(v)}`}
+                  better={targetUnitsDelta <= 0}
+                />
               </div>
 
               {/* Scenario chart */}
