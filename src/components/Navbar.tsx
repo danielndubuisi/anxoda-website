@@ -132,7 +132,7 @@ const Navbar = () => {
                             ) : (
                                 <Link to="/auth">
                                     <Button variant="hero" size="sm">
-                                        Try tools
+                                        Start ProfitPro Free
                                     </Button>
                                 </Link>
                             )}
@@ -191,7 +191,7 @@ const Navbar = () => {
                                                 variant="hero"
                                                 size="sm"
                                                 className="w-full">
-                                                Try tools
+                                                Start ProfitPro Free
                                             </Button>
                                         </Link>
                                     )}

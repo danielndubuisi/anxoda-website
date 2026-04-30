@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { FileSpreadsheet, TrendingUp, MapPin, Target, Clock } from "lucide-react";
+import { FileSpreadsheet, TrendingUp, MapPin, Target, Clock, Sparkles } from "lucide-react";
 
 interface Tool {
   id: string;
@@ -13,26 +13,30 @@ interface Tool {
   status: "active" | "coming-soon";
   gradientFrom: string;
   gradientTo: string;
+  recommended?: boolean;
 }
 
 const tools: Tool[] = [
   {
-    id: "spreadsheet-analyzer",
-    name: "A.S.S",
-    description: "Upload spreadsheets and get AI-powered insights, trends, and recommendations from the Auto Spreadsheet Summarizer (A.S.S)",
-    icon: FileSpreadsheet,
-    status: "active",
-    gradientFrom: "from-blue-500",
-    gradientTo: "to-cyan-500",
-  },
-  {
     id: "cvp-analyzer",
     name: "ProfitPro",
-    description: "Analyze Cost-Volume-Profit relationships to optimize pricing and profitability",
+    description:
+      "Find your break-even point, hit your profit goal, and chat with an AI profit coach. Built for Naira businesses.",
     icon: TrendingUp,
     status: "active",
     gradientFrom: "from-emerald-500",
     gradientTo: "to-teal-500",
+    recommended: true,
+  },
+  {
+    id: "spreadsheet-analyzer",
+    name: "A.S.S",
+    description:
+      "Upload spreadsheets or connect a live Google Sheet to get plain-English business insights and shareable reports.",
+    icon: FileSpreadsheet,
+    status: "active",
+    gradientFrom: "from-blue-500",
+    gradientTo: "to-cyan-500",
   },
   {
     id: "regional-mapper",
@@ -89,16 +93,24 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
             >
               <Icon className="h-4 w-4 text-white" />
             </div>
-            <Badge
-              variant={tool.status === "active" ? "default" : "secondary"}
-              className={
-                tool.status === "active"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                  : "bg-muted text-muted-foreground"
-              }
-            >
-              {tool.status === "active" ? "Active" : "Coming Soon"}
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {tool.recommended && (
+                <Badge className="bg-primary text-primary-foreground">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Recommended
+                </Badge>
+              )}
+              <Badge
+                variant={tool.status === "active" ? "default" : "secondary"}
+                className={
+                  tool.status === "active"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {tool.status === "active" ? "Active" : "Coming Soon"}
+              </Badge>
+            </div>
           </div>
           <CardTitle className="text-base font-semibold text-foreground mt-3">
             {tool.name}
@@ -189,9 +201,9 @@ export const ToolsGrid = ({ onToolSelect }: ToolsGridProps) => {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold text-foreground">Business Intelligence Tools</h2>
+        <h2 className="text-3xl font-bold text-foreground">Your Anxoda Tools</h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Choose from our suite of AI-powered tools to analyze your business data and gain actionable insights
+          Start with ProfitPro to plan your profit, then use A.S.S to analyze your data.
         </p>
       </div>
 
