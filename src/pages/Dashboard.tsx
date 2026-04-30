@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +61,7 @@ interface Subscription {
 const Dashboard = () => {
     const { user, signOut, loading } = useAuth();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { toast } = useToast();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
