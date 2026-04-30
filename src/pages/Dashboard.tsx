@@ -94,6 +94,28 @@ const Dashboard = () => {
         }
     }, [user, loading, navigate]);
 
+    // HashRouter-safe deep links: /#/dashboard?tool=cvp-analyzer or ?tab=reports
+    useEffect(() => {
+        if (!user) return;
+        const tabParam = searchParams.get("tab");
+        const toolParam = searchParams.get("tool");
+        let consumed = false;
+        if (toolParam === "cvp-analyzer" || toolParam === "spreadsheet-analyzer") {
+            setActiveTab("tools");
+            setSelectedTool(toolParam);
+            consumed = true;
+        } else if (tabParam && ["overview", "tools", "reports", "settings"].includes(tabParam)) {
+            setActiveTab(tabParam);
+            consumed = true;
+        }
+        if (consumed) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("tool");
+            next.delete("tab");
+            setSearchParams(next, { replace: true });
+        }
+    }, [user, searchParams, setSearchParams]);
+
     // Fetch user profile and subscription
     const fetchProfile = useCallback(async () => {
         try {
