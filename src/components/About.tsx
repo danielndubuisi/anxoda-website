@@ -44,10 +44,10 @@ const achievements = [
 ];
 
 const certifications = [
-    "Certified AI Solutions Partner",
-    "Data Analytics Specialist",
-    "Cloud Solutions Expert",
-    "Digital Transformation Leader",
+    "Built for African SMBs",
+    "Naira-First",
+    "Plain-English Reports",
+    "AI-Powered",
 ];
 
 const teamMembers = [
@@ -82,17 +82,16 @@ const About = () => {
                         About Anxoda
                     </span>
                     <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6">
-                        Empowering Small Businesses to
+                        Empowering African SMBs to
                         <span className="text-primary block sm:inline">
                             {" "}
-                            Thrive Digitally
+                            Run Profitable Businesses
                         </span>
                     </h2>
                     <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto">
-                        We believe every small business has the potential to
-                        succeed in the digital economy. Our mission is to
-                        provide the tools, insights, and strategies needed to
-                        unlock that potential.
+                        Most small business owners don't truly know their
+                        break-even point or unit economics. Anxoda gives them
+                        the answers — in plain English, in Naira, in minutes.
                     </p>
                 </div>
 
@@ -104,12 +103,12 @@ const About = () => {
                                 Why Choose Anxoda?
                             </h3>
                             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-                                At Anxoda, we understand the unique challenges
-                                small businesses face in today's competitive
-                                digital landscape. Our team of experts combines
-                                deep industry knowledge with cutting-edge
-                                technology to deliver solutions that drive real
-                                results.
+                                We built Anxoda for the way African SMBs really
+                                operate: lean teams, tight margins, and no time
+                                for accountant jargon. Every feature is designed
+                                to give you a clear answer to one question —
+                                "Is my business actually profitable, and what
+                                should I do next?"
                             </p>
 
                             <div className="space-y-4">
@@ -117,11 +116,11 @@ const About = () => {
                                     <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary mt-1 flex-shrink-0" />
                                     <div>
                                         <h4 className="font-semibold text-foreground text-sm sm:text-base">
-                                            Tailored Solutions
+                                            Plain-English Insights
                                         </h4>
                                         <p className="text-muted-foreground text-sm sm:text-base">
-                                            Every solution is customized to your
-                                            specific business needs and goals.
+                                            No spreadsheets full of jargon —
+                                            just clear answers you can act on.
                                         </p>
                                     </div>
                                 </div>
@@ -129,12 +128,12 @@ const About = () => {
                                     <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary mt-1 flex-shrink-0" />
                                     <div>
                                         <h4 className="font-semibold text-foreground text-sm sm:text-base">
-                                            Proven Methodology
+                                            Naira-Native Math
                                         </h4>
                                         <p className="text-muted-foreground text-sm sm:text-base">
-                                            Our systematic approach ensures
-                                            successful implementation and
-                                            measurable results.
+                                            Every calculation, chart, and
+                                            recommendation is built around the
+                                            way African SMBs price and sell.
                                         </p>
                                     </div>
                                 </div>
@@ -142,12 +141,12 @@ const About = () => {
                                     <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary mt-1 flex-shrink-0" />
                                     <div>
                                         <h4 className="font-semibold text-foreground text-sm sm:text-base">
-                                            Ongoing Support
+                                            Built for Operators, Not Accountants
                                         </h4>
                                         <p className="text-muted-foreground text-sm sm:text-base">
-                                            We provide continuous support to
-                                            ensure your success long after
-                                            implementation.
+                                            Designed for owner-operators, small
+                                            teams, and consultants who need
+                                            answers fast — on any device.
                                         </p>
                                     </div>
                                 </div>
