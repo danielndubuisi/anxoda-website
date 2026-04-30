@@ -540,6 +540,37 @@ const Dashboard = () => {
 
                             {/* Overview Tab */}
                             <TabsContent value="overview" className="space-y-6">
+                                {/* Recommended: Start with ProfitPro */}
+                                <Card className="relative overflow-hidden border-primary/30">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/15 via-primary/10 to-transparent pointer-events-none" />
+                                    <CardContent className="relative p-6 sm:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                        <div className="space-y-2 max-w-2xl">
+                                            <Badge className="bg-primary text-primary-foreground">
+                                                <Sparkles className="w-3 h-3 mr-1" />
+                                                Recommended for you
+                                            </Badge>
+                                            <h3 className="text-xl sm:text-2xl font-bold text-foreground">
+                                                Start with ProfitPro
+                                            </h3>
+                                            <p className="text-sm sm:text-base text-muted-foreground">
+                                                Find your break-even point and know exactly how many sales you need to hit your profit goal.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="hero"
+                                            size="lg"
+                                            className="group w-full md:w-auto flex-shrink-0"
+                                            onClick={() => {
+                                                setActiveTab("tools");
+                                                setSelectedTool("cvp-analyzer");
+                                            }}>
+                                            <TrendingUp className="w-4 h-4 mr-2" />
+                                            Open ProfitPro
+                                            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                     <Card>
                                         <CardContent className="p-6">
