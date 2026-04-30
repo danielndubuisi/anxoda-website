@@ -7,14 +7,16 @@ import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import AIChatbot from "@/components/AIChatbot";
 import SEOHead from "@/components/SEOHead";
+import Capabilities from "@/components/Capabilities";
+import BuiltForAfrica from "@/components/BuiltForAfrica";
 
 const Index = () => {
   return (
     <div className="min-h-screen">
       <SEOHead 
-        title="Anxoda - AI-Powered Business Solutions for Digital Transformation"
-        description="Transform your business with Anxoda's AI-powered solutions. Custom software tools, data consultancy, and digital transformation services for small businesses in Africa. Get started today!"
-        keywords="business intelligence, AI solutions, digital transformation, data consultancy, custom software, automation, small business, Africa, Lagos, Nigeria"
+        title="Anxoda — AI Business Intelligence & Profit Planning for African SMBs"
+        description="Know if your business is truly profitable. Anxoda helps African small businesses find their break-even point, analyze spreadsheets, and make smarter profit decisions with AI."
+        keywords="break-even calculator, profit planning, CVP analysis, business intelligence, AI insights, spreadsheet analyzer, Nigerian SMB, African small business, ProfitPro, Naira"
         canonicalUrl="https://www.anxoda.com/"
       />
       <header>
@@ -22,9 +24,11 @@ const Index = () => {
       </header>
       <main>
         <Hero />
-        <About />
+        <Capabilities />
+        <BuiltForAfrica />
         <Services />
         <Process />
+        <About />
         <Contact />
       </main>
       <Footer />
