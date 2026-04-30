@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,13 +23,22 @@ const Auth = () => {
 
     const { signUp, signIn, signInWithGoogle, user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     // Redirect if already authenticated
     useEffect(() => {
         if (user) {
-            navigate("/dashboard");
+            const redirectTool = searchParams.get("redirect");
+            if (
+                redirectTool === "cvp-analyzer" ||
+                redirectTool === "spreadsheet-analyzer"
+            ) {
+                navigate(`/dashboard?tool=${redirectTool}`);
+            } else {
+                navigate("/dashboard");
+            }
         }
-    }, [user, navigate]);
+    }, [user, navigate, searchParams]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
