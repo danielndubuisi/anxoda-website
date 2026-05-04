@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Send, MessageSquare, Loader2, Bot, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, Loader2, User as UserIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,7 @@ export const ProfitProChat = ({ dialogueAnswers, cvpResults, aiInsights, onBack 
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
-      content: `👋 Hi! I'm your **AI Profit Coach**. I've reviewed your numbers and I'm here to help you grow your profit. Ask me anything — or pick a question below to get started.`,
+      content: `👋 Hi, I'm **John**, your Anxoda Profit Coach. I've looked over your numbers and I'm here to help you grow your profit. Ask me anything — or pick a question below to get started.`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -126,7 +126,7 @@ export const ProfitProChat = ({ dialogueAnswers, cvpResults, aiInsights, onBack 
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Insights
         </Button>
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <MessageSquare className="h-4 w-4 text-primary" /> AI Profit Coach
+          <MessageSquare className="h-4 w-4 text-primary" /> John · Anxoda Profit Coach
         </div>
       </div>
 
@@ -139,7 +139,7 @@ export const ProfitProChat = ({ dialogueAnswers, cvpResults, aiInsights, onBack 
                   <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
                     m.role === "user" ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
                   }`}>
-                    {m.role === "user" ? <UserIcon className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
+                    {m.role === "user" ? <UserIcon className="h-3.5 w-3.5" /> : <span className="text-xs font-bold">J</span>}
                   </div>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
                     m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
@@ -157,7 +157,7 @@ export const ProfitProChat = ({ dialogueAnswers, cvpResults, aiInsights, onBack 
               {isStreaming && messages[messages.length - 1]?.role === "user" && (
                 <div className="flex gap-2">
                   <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <Bot className="h-3.5 w-3.5" />
+                    <span className="text-xs font-bold">J</span>
                   </div>
                   <div className="bg-muted rounded-2xl px-4 py-2.5">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -189,7 +189,7 @@ export const ProfitProChat = ({ dialogueAnswers, cvpResults, aiInsights, onBack 
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && send(input)}
-              placeholder="Ask your coach anything..."
+              placeholder="Ask John anything..."
               disabled={isStreaming}
             />
             <Button onClick={() => send(input)} disabled={isStreaming || !input.trim()}>
