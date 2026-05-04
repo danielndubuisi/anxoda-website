@@ -14,6 +14,7 @@ import { ProfitProDialogue, DialogueAnswers } from "./ProfitProDialogue";
 import { ProfitProThinking } from "./ProfitProThinking";
 import { ProfitProInsights } from "./ProfitProInsights";
 import { ProfitProWelcome } from "./ProfitProWelcome";
+import type { PastAnalysis } from "./ProfitProWelcome";
 import { ProfitProChat } from "./ProfitProChat";
 import { DataConnectionSelector } from "@/components/DataConnectionSelector";
 import { Database, FileSpreadsheet, Settings, BarChart3, Loader2, CheckCircle, Plus, MessageSquare } from "lucide-react";
@@ -49,6 +50,7 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   const [cvpResults, setCvpResults] = useState<any>(null);
   const [aiInsights, setAiInsights] = useState<any>(null);
   const [pollingForReport, setPollingForReport] = useState(false);
+  const [insightsInitialTab, setInsightsInitialTab] = useState<"chart" | "whatif">("chart");
 
   // Fetch available data sources
   useEffect(() => {
@@ -228,7 +230,21 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
   // --- Render by step ---
 
   if (step === "welcome") {
-    return <ProfitProWelcome onStart={() => setStep("dialogue")} onBack={onBack} />;
+    const handleOpenAnalysis = (a: PastAnalysis, opts?: { goToWhatIf?: boolean }) => {
+      const da = (a.config as any)?.dialogueAnswers || null;
+      setDialogueAnswers(da);
+      setDialogueCvpResults(a.cvp_results);
+      setDialogueAiInsights(a.ai_insights);
+      setInsightsInitialTab(opts?.goToWhatIf ? "whatif" : "chart");
+      setStep("insights");
+    };
+    return (
+      <ProfitProWelcome
+        onStart={() => setStep("dialogue")}
+        onBack={onBack}
+        onOpenAnalysis={handleOpenAnalysis}
+      />
+    );
   }
 
   if (step === "dialogue") {
@@ -249,8 +265,9 @@ export const ProfitProWorkflow = ({ onBack }: ProfitProWorkflowProps) => {
         productName={dialogueAnswers?.productName}
         onConnectData={() => setStep("select")}
         onChat={() => setStep("chat")}
-        onBack={() => setStep("dialogue")}
+        onBack={() => setStep("welcome")}
         onNewAnalysis={resetWorkflow}
+        initialTab={insightsInitialTab}
       />
     );
   }
