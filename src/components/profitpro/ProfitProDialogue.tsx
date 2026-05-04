@@ -64,6 +64,34 @@ const PERIOD_LABELS: Record<DialoguePeriod, string> = {
   daily: "day", weekly: "week", monthly: "month", yearly: "year",
 };
 
+const PRODUCT_PLACEHOLDERS: Record<string, string> = {
+  "Food & Beverages": "e.g. Jollof rice plate · Bottled zobo 50cl · Meat pie",
+  "Fashion & Textiles": "e.g. Ankara dress · Men's t-shirt · Bridal gele",
+  "Beauty & Personal Care": "e.g. Box braids · Manicure · Shea butter 250g",
+  "Retail & E-commerce": "e.g. Phone charger · School bag · 5L bucket",
+  "Agriculture & Farming": "e.g. 50kg bag of maize · Crate of eggs · Live broiler",
+  "Manufacturing": "e.g. Plastic chair · Bottled groundnut oil 1L · Bag of sachet water",
+  "Hospitality & Tourism": "e.g. Standard room/night · Weekend tour package · Event hall/day",
+  "Professional Services": "e.g. Logo design · Tax filing · 1-hr consultation",
+  "Technology & Software": "e.g. Website build · SaaS subscription/month · App maintenance",
+  "Healthcare & Pharmaceuticals": "e.g. Malaria test · Antimalarial pack · Doctor consultation",
+  "Construction & Real Estate": "e.g. Bag of cement · House plan design · Tile installation/sqm",
+  "Transportation & Logistics": "e.g. Lagos–Ibadan trip · Same-day delivery · Container haulage",
+  "Education & Training": "e.g. Monthly tuition · Coding bootcamp seat · Tutoring/hr",
+  "Automotive": "e.g. Engine oil change · Car wash · Brake pad replacement",
+  "Financial Services": "e.g. Business loan · Insurance plan · Bookkeeping/month",
+  "Oil & Gas / Energy": "e.g. Diesel/litre · Solar inverter install · LPG refill 12.5kg",
+  "Media & Entertainment": "e.g. Wedding video · Studio session/hr · Event MC",
+  "Telecommunications": "e.g. Data bundle 10GB · Router install · SIM activation",
+  "Mining & Extractives": "e.g. Tonne of granite · Bag of sand · Quarry truckload",
+};
+
+const SERVICE_INDUSTRIES = new Set([
+  "Professional Services", "Education & Training", "Healthcare & Pharmaceuticals",
+  "Financial Services", "Hospitality & Tourism", "Media & Entertainment",
+  "Telecommunications", "Transportation & Logistics", "Beauty & Personal Care",
+]);
+
 const fmtNGN = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 
 export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps) => {
@@ -100,6 +128,13 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
   const [volume, setVolume] = useState("");
 
   const periodWord = PERIOD_LABELS[period];
+  const productPlaceholder =
+    PRODUCT_PLACEHOLDERS[industry] || "e.g. Bottled groundnut oil 1L · Haircut · T-shirt";
+  const isService = SERVICE_INDUSTRIES.has(industry);
+  const materialLabel = isService ? "Materials/supplies cost per ONE unit" : "Material cost per ONE unit";
+  const materialHint = isService
+    ? "Tip: pure services often have ₦0 here — leave blank if none."
+    : "Raw materials for one item";
 
   const fetchSuggestion = async () => {
     if (!productName.trim() || !industry) return;
@@ -242,7 +277,7 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
               id="product"
               value={productName}
               onChange={e => setProductName(e.target.value)}
-              placeholder="e.g. Bottled groundnut oil 1L · Haircut · T-shirt"
+              placeholder={productPlaceholder}
               autoFocus
             />
             <p className="text-xs text-muted-foreground">Be specific so we can pull realistic prices and costs for you.</p>
@@ -272,8 +307,8 @@ export const ProfitProDialogue = ({ onComplete, onBack }: ProfitProDialogueProps
             )}
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="material">Material cost per ONE unit</Label>
-                <FormattedNairaInput id="material" value={materialCost} onChange={setMaterialCost} placeholder="Raw materials for one item" />
+                <Label htmlFor="material">{materialLabel}</Label>
+                <FormattedNairaInput id="material" value={materialCost} onChange={setMaterialCost} placeholder={materialHint} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="labour">Labour cost per ONE unit</Label>
