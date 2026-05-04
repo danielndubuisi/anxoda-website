@@ -54,6 +54,7 @@ interface ProfitProInsightsProps {
   onChat: () => void;
   onBack: () => void;
   onNewAnalysis: () => void;
+  initialTab?: "chart" | "whatif" | "insights" | "prescriptions";
 }
 
 function fmt(n: number): string {
@@ -140,7 +141,7 @@ const PlainCard = ({
 
 export const ProfitProInsights = ({
   cvpResults: r, aiInsights, targetProfit = 0, period = "period", productName,
-  onConnectData, onChat, onBack, onNewAnalysis,
+  onConnectData, onChat, onBack, onNewAnalysis, initialTab = "chart",
 }: ProfitProInsightsProps) => {
   // Baseline numbers
   const basePrice = r.totalRevenue / (r.currentVolume || 1);
@@ -364,7 +365,7 @@ export const ProfitProInsights = ({
         </div>
       </details>
 
-      <Tabs defaultValue="chart">
+      <Tabs defaultValue={initialTab}>
         <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto">
           <TabsTrigger value="chart">Break-Even</TabsTrigger>
           <TabsTrigger value="whatif">What If?</TabsTrigger>
@@ -581,13 +582,13 @@ export const ProfitProInsights = ({
             <MessageSquare className="h-6 w-6 text-primary" />
           </div>
           <div className="flex-1 text-center sm:text-left">
-            <h4 className="font-semibold">Chat with your AI Profit Coach</h4>
+            <h4 className="font-semibold">Talk to John, your Anxoda Profit Coach</h4>
             <p className="text-sm text-muted-foreground">
-              Ask anything about your numbers — pricing, costs, growth strategy. Your coach knows your business.
+              Ask anything about your numbers — pricing, costs, growth strategy. John knows your business.
             </p>
           </div>
           <Button onClick={onChat} className="shadow-md">
-            Start Chat <ArrowRight className="h-4 w-4 ml-1" />
+            Talk to John <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </CardContent>
       </Card>
