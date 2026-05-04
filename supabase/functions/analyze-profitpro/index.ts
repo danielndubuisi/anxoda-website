@@ -330,8 +330,36 @@ CRITICAL FRAMING: The owner's #1 question is "How many units must I sell to be p
       // We already updated processing_status above, now add AI insights
     }
 
+    // Persist dialogue-only analyses so users can revisit them later.
+    let dialogueAnalysisId: string | null = null;
+    if (isDialogueOnly) {
+      try {
+        const da = dialogueAnswers;
+        const title = da?.productName
+          ? `${da.productName} (${da.industry || 'business'})`
+          : 'ProfitPro Analysis';
+        const { data: saved, error: saveErr } = await supabaseAdmin
+          .from('profitpro_analyses')
+          .insert({
+            user_id: user.id,
+            title,
+            field_mapping: {},
+            config: { dialogueAnswers: da },
+            cvp_results: cvpResults,
+            ai_insights: aiInsights,
+            processing_status: 'completed',
+          })
+          .select('id')
+          .single();
+        if (!saveErr && saved) dialogueAnalysisId = saved.id;
+        else if (saveErr) console.error('Failed to persist dialogue analysis:', saveErr);
+      } catch (persistErr) {
+        console.error('Persist dialogue analysis error:', persistErr);
+      }
+    }
+
     return new Response(JSON.stringify({
-      analysisId: isDialogueOnly ? null : undefined,
+      analysisId: isDialogueOnly ? dialogueAnalysisId : undefined,
       cvpResults,
       aiInsights,
     }), {
