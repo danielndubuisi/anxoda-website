@@ -1,113 +1,116 @@
-## ProfitPro v3: Conversational, AI-Researched, Profit-Path Focused
+## ProfitPro Polish Round 3: Personality, Industry-Awareness & Returning Users
 
-Six refinements to make ProfitPro feel like a friendly profit coach that does the homework for the user.
+Three focused changes that make ProfitPro feel smarter and more personal — no backend logic, math, or schema changes.
 
-### 1. Conversational Welcome (`ProfitProWelcome.tsx`)
+---
 
-Replace the landing-page-style hero with a warmer, chat-style greeting:
+### 1. Industry-aware placeholders on Step 3 (Product/Service)
 
-- New headline: **"Hello there 👋"**
-- Sub-headline: **"Want to boost your profits and know exactly what it takes?"**
-- One-paragraph copy: _"Tell me a little about your business and I'll show you the smallest number of sales you need to start making real profit — plus how to get there faster."_
-- Drop the "AI-Powered" / "7 questions" framing entirely (no mention of AI to the user).
-- Keep the gradient icon + soft animations but tone down to feel more personal.
-- CTAs unchanged: **"Let's go →"** and **"Back to Tools"**.
-- Footer line: _"Takes about 2 minutes."_
+**File:** `src/components/profitpro/ProfitProDialogue.tsx`
 
-### 2. Step 1 reorder + comma-formatted inputs (`ProfitProDialogue.tsx`)
+Currently the product input shows a fixed placeholder: `e.g. Bottled groundnut oil 1L · Haircut · T-shirt`.
 
-Reorder Step 1 so the **profit goal comes first**, then the period:
+Add a placeholder map keyed by industry (using the existing `INDUSTRIES` list) so the example matches the user's selected industry:
 
-1. **"How much profit do you want to make?"** (Naira input, comma-formatted)
-2. **"Over what period?"** (Daily / Weekly / Monthly / Yearly select)
-3. Inline confirmation: _"Got it — you want to make ₦X every [period]."_
-
-Build a new **`FormattedNairaInput`** component that:
-- Displays values with thousands-separators (e.g. `500,000`) as the user types
-- Stores the underlying numeric string in state (strips commas)
-- Reads `inputMode="numeric"` and `type="text"` so commas render properly on mobile/desktop
-- Reused in **every** monetary field across the dialogue (target profit, costs, unit price)
-- Volume field also gets thousand-separator formatting (without ₦)
-
-### 3. AI-researched cost auto-fill (new step + edge function)
-
-Replace the manual variable-cost step with an **AI suggestion flow**:
-
-- After Industry, ask: **"What's the one product or service you want to sell?"** (single text input — e.g. "Bottled groundnut oil 1L", "Haircut", "T-shirt").
-- On submit, call a new edge function **`suggest-product-costs`** (uses Lovable AI Gateway, `google/gemini-3-flash-preview` with structured tool-calling) that returns:
-  ```json
-  {
-    "suggestedUnitPrice": 2500,
-    "marketPriceRange": { "low": 2000, "high": 3200 },
-    "variableCosts": { "material": 1200, "labour": 300, "other": 150 },
-    "fixedCostsHints": { "rent": 80000, "admin": 50000 },
-    "rationale": "Based on typical Nigerian small-business benchmarks for ..."
-  }
-  ```
-  Prompt anchors on Nigerian market context (Naira), the user's industry, and the product/service name.
-- Show a **"Smart Estimates"** card pre-filled with these numbers; each field is editable. A small note reads: _"These are typical benchmarks for your industry — adjust to match your reality."_
-- The fixed-costs step keeps its existing shape but uses the suggested rent/admin as defaults (still editable and additive).
-- Selling-price step shows the suggested price prominently with the **market range** as helper text: _"Most sellers charge ₦2,000–₦3,200. Suggested: ₦2,500."_
-
-This satisfies "what price to sell at based on current market trends" and "auto-fill costs based on industry + product."
-
-### 4. Remove Expected Revenue step (auto-calculate)
-
-Delete Step 7 entirely. Revenue is computed as `unitPrice × volume` server-side and client-side. The dialogue ends after the Volume step. Total dialogue: **6 steps** (Profit Goal → Industry → Product → Smart Costs → Fixed Bills → Selling Price → Volume — actually 7 steps but one less interactive question; will combine Product+Smart Costs review into a single step to keep it at ~6).
-
-Updated `DialogueAnswers` interface: drop `expectedRevenue`; add `productName: string` and optional `marketPriceRange: { low: number; high: number }`.
-
-### 5. Refocused summary report — "Path to Profit" (`ProfitProInsights.tsx`)
-
-The hero of the insights view becomes a single, can't-miss card:
-
-> **"Sell at least X units per [period] to start making profit."**
-> _"At your price of ₦Y, that's ₦Z in revenue."_
-
-Below it, a second highlight card:
-
-> **"To hit your goal of ₦[targetProfit], sell N units per [period]."**
-> Where `N = (fixedCosts + targetProfit) / (price - vcPerUnit)` — the **target-profit volume** formula.
-
-Then keep:
-- The 3 core plain-English cards (margin, profit/loss, margin of safety) — drop the redundant break-even revenue card since BE units is now the hero.
-- The **break-even chart** below.
-- The **What If?** tab (see #6).
-- The **Actions** tab (AI prescriptions).
-
-Demote the "Advanced (DOL)" card to a collapsible `<details>` element so it doesn't clutter the main view.
-
-The AI prompt in `analyze-profitpro` is updated to emphasize: _"The user's #1 question is 'how many units must I sell to be profitable AND hit my target?' Always reference the minimum-profitable volume and target-profit volume in plain language."_
-
-### 6. Smarter What-If with profitability framing (`ProfitProInsights.tsx`)
-
-Keep the slider mechanics but reframe the live deltas around the user's actual question:
-
-- Add a **"Profitability Verdict"** banner at the top of the What-If tab:
-  - Green: _"At this scenario you'd profit ₦X — ₦Y above your goal."_
-  - Amber: _"You'd cover costs but fall ₦Z short of your goal."_
-  - Red: _"You'd still lose money — try raising price or volume."_
-- The 3 delta cards become: **"Profit vs your goal"**, **"Units needed to break even"**, **"Units needed to hit goal"** (replaces "Margin of safety" delta — clearer for an SMB owner).
-- Keep the live scenario chart.
-- Add a one-click **"Match my goal"** button that auto-solves the volume slider to the exact units needed to reach the target profit at the current price/cost mix (computed via the target-profit-volume formula).
-
-### Files Changed / Created
-
-| File | Action |
+| Industry | Placeholder example |
 |---|---|
-| `src/components/profitpro/ProfitProWelcome.tsx` | Rewrite: warm, conversational tone, drop AI/landing-page framing |
-| `src/components/profitpro/ProfitProDialogue.tsx` | Reorder Step 1, add Product step, drop Revenue step, integrate `FormattedNairaInput`, accept AI-suggested defaults |
-| `src/components/profitpro/FormattedNairaInput.tsx` | **Create** — comma-formatted numeric input |
-| `src/components/profitpro/ProfitProInsights.tsx` | New "Path to Profit" hero, target-profit-volume calc, demote DOL, refocus What-If verdict + "Match my goal" button |
-| `src/lib/cvpMath.ts` | Add `unitsForTargetProfit({ price, vcPerUnit, fc, target })` helper |
-| `supabase/functions/suggest-product-costs/index.ts` | **Create** — Lovable AI tool-calling endpoint returning typical Nigerian benchmarks for industry + product |
-| `supabase/functions/analyze-profitpro/index.ts` | Drop `expectedRevenue` requirement (compute as price × volume); enhance prompt to emphasize minimum-profitable volume + target-profit volume |
-| `supabase/config.toml` | Register `suggest-product-costs` (`verify_jwt = true`) |
+| Food & Beverages | `e.g. Jollof rice plate · Bottled zobo 50cl · Meat pie` |
+| Fashion & Textiles | `e.g. Ankara dress · Men's t-shirt · Bridal gele` |
+| Beauty & Personal Care | `e.g. Box braids · Manicure · Shea butter 250g` |
+| Retail & E-commerce | `e.g. Phone charger · School bag · 5L bucket` |
+| Agriculture & Farming | `e.g. 50kg bag of maize · Crate of eggs · Live broiler` |
+| Manufacturing | `e.g. Plastic chair · Bottled groundnut oil 1L · Bag of sachet water` |
+| Hospitality & Tourism | `e.g. Standard room/night · Weekend tour package · Event hall/day` |
+| Professional Services | `e.g. Logo design · Tax filing · 1-hr consultation` |
+| Technology & Software | `e.g. Website build · SaaS subscription/month · App maintenance` |
+| Healthcare & Pharmaceuticals | `e.g. Malaria test · Antimalarial pack · Doctor consultation` |
+| Construction & Real Estate | `e.g. Bag of cement · House plan design · Tile installation/sqm` |
+| Transportation & Logistics | `e.g. Lagos–Ibadan trip · Same-day delivery · Container haulage` |
+| Education & Training | `e.g. Monthly tuition · Coding bootcamp seat · Tutoring/hr` |
+| Automotive | `e.g. Engine oil change · Car wash · Brake pad replacement` |
 
-### Technical Notes
+(Plus sensible defaults for the remaining industries; fall back to the current example for `Other` / unmatched.)
 
-- **Comma formatting**: store raw numeric string in state, format with `Intl.NumberFormat('en-NG').format(n)` for display, parse with `value.replace(/,/g,'')` on change.
-- **Target-profit volume formula**: `Math.ceil((fixedCosts + targetProfit) / (pricePerUnit - vcPerUnit))` — guarded against `cmPerUnit <= 0` (returns `Infinity`, displayed as "Not possible at current pricing").
-- **Cost-suggestion edge function**: authenticated (`verify_jwt = true`), uses tool-calling for guaranteed JSON shape, falls back to `null` on AI failure (UI then shows blank inputs as before).
-- **No AI mention to users**: all UI copy says "smart estimates" / "typical benchmarks" rather than naming the technology.
-- **Period semantics unchanged**: math stays in the user's chosen period; `unitPrice × volume` consistency means we don't need to re-introduce period normalization.
+Also use the same map to flavor the **labels** of cost fields on Step 4 where useful — e.g. for service industries the "Material cost" label becomes "Materials/supplies cost" and for pure services it can show a hint "Services often have ₦0 here". Keep field IDs and state untouched.
+
+---
+
+### 2. Rebrand "AI Profit Coach" → "John, your Anxoda Profit Coach"
+
+**File:** `src/components/profitpro/ProfitProChat.tsx`
+
+- Header label: change `AI Profit Coach` → `John · Anxoda Profit Coach`.
+- Welcome message: replace
+  > 👋 Hi! I'm your **AI Profit Coach**. I've reviewed your numbers…
+
+  with
+  > 👋 Hi, I'm **John**, your Anxoda Profit Coach. I've looked over your numbers and I'm here to help you grow your profit. Ask me anything — or pick a question below to get started.
+- Replace the generic `Bot` lucide icon used for the assistant avatar with a small monogram **"J"** in a circle (same primary-tint background) so it feels like a person, not a robot.
+- Input placeholder: `Ask John anything…`
+
+**File:** `supabase/functions/profitpro-chat/index.ts`
+
+Update the system prompt so the assistant introduces and refers to itself as **John, the Anxoda Profit Coach**, never mentioning "AI", "model", or "assistant". Tone: warm, direct, plain English, Naira examples.
+
+**Other entry points** to scan for "AI Profit Coach" / "AI Coach" wording and update to "Profit Coach" / "Talk to John":
+- `src/components/profitpro/ProfitProInsights.tsx` (the "Chat" CTA button + any heading)
+- `src/components/profitpro/ProfitProWorkflow.tsx` (any tab/label)
+
+The word "AI" stays in marketing/landing pages — only the coach persona is renamed.
+
+---
+
+### 3. Smart Welcome screen for returning users
+
+**Files:**
+- `src/components/profitpro/ProfitProWorkflow.tsx` (orchestrates step state)
+- `src/components/profitpro/ProfitProWelcome.tsx` (extend, not replace)
+
+**Behavior**
+
+On entering ProfitPro, query `profitpro_analyses` for the current user (`order created_at desc`, `limit 5`, `processing_status = 'completed'`, non-null `cvp_results`).
+
+- **No prior analyses** → show the existing friendly welcome screen unchanged (first-time experience preserved).
+- **Has prior analyses** → render a new **"Welcome back" dashboard** instead:
+  - Compact header: `Welcome back 👋 — pick up where you left off.`
+  - **Most recent analysis card** (highlighted): product name, industry, target profit, break-even units, last updated. Two primary actions:
+    - `Open insights` → loads that analysis's `cvp_results` + `ai_insights` into state and jumps directly to the `insights` step (reusing `ProfitProInsights`, including its existing What-If sandbox + `Talk to John` chat).
+    - `Run a What-If on this` → same as above but auto-scrolls/opens the What-If panel inside `ProfitProInsights`. (If the panel is currently a section, pass an `initialTab="whatif"` prop; otherwise add a small `scrollToWhatIf` ref behavior.)
+  - **List of up to 4 more past analyses** (smaller cards): each opens its insights view.
+  - **Secondary CTA at the bottom:** `Start a fresh analysis` → goes to the `dialogue` step like today.
+
+Loading state: show a subtle skeleton inside the welcome card while the query runs (keeps the screen from flashing the first-time message before the dashboard appears).
+
+**Loading saved analyses into state**
+
+The analysis row already stores `cvp_results`, `ai_insights`, `config`, and (in `config`) the original `dialogueAnswers`. Reuse `ProfitProReport`'s fetch pattern, then set:
+- `dialogueCvpResults`, `dialogueAiInsights`, `dialogueAnswers` (read from `config.dialogueAnswers` if present), then `setStep("insights")`.
+
+If a row has no `dialogueAnswers` saved (older spreadsheet-flow analyses), open it in the existing `CVPDashboard` results view instead.
+
+---
+
+### Files Touched
+
+**Edited**
+- `src/components/profitpro/ProfitProDialogue.tsx` — industry placeholder map for Step 3 + tweaked Step 4 labels.
+- `src/components/profitpro/ProfitProChat.tsx` — John persona, header, avatar monogram, placeholder.
+- `src/components/profitpro/ProfitProInsights.tsx` — chat CTA copy ("Talk to John"); add optional `initialTab="whatif"` (or scroll target) so the welcome dashboard can deep-link into What-If.
+- `src/components/profitpro/ProfitProWelcome.tsx` — extend to render the returning-user dashboard when prior analyses exist.
+- `src/components/profitpro/ProfitProWorkflow.tsx` — fetch past analyses on mount; new handler to load a saved analysis into insights state; pass props through to welcome and insights.
+- `supabase/functions/profitpro-chat/index.ts` — system prompt rename to John.
+
+**Not touched**
+- CVP math (`src/lib/cvpMath.ts`)
+- `analyze-profitpro` edge function and DB schema
+- Auth / RLS / migrations
+- Marketing site copy
+
+---
+
+### Out of scope (explicit)
+
+- No new database columns or migrations.
+- No changes to how analyses are saved.
+- No changes to the dialogue's 7-step structure or order.
+- No removal of the first-time welcome — only an alternate render path for returning users.
