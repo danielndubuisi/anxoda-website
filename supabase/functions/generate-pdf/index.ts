@@ -14,24 +14,65 @@ serve(async (req) => {
 
   try {
     console.log('📄 PDF Generation started');
-    
-    const { reportId, userId, aiInsights, chartData } = await req.json();
-    
-    if (!reportId || !userId) {
-      throw new Error('Missing required fields: reportId or userId');
+
+    // ── Authenticate caller ──
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log(`Processing report ${reportId} for user ${userId}`);
-    
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       throw new Error('Missing Supabase configuration');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const authUserId = userData.user.id;
+
+    const { reportId, aiInsights, chartData } = await req.json();
+
+    if (!reportId) {
+      return new Response(JSON.stringify({ error: 'Missing required field: reportId' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Bind to authenticated user — never trust caller-supplied userId
+    const userId = authUserId;
+
+    // Service-role client for storage write + report verification
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify report ownership
+    const { data: ownedReport, error: ownErr } = await supabase
+      .from('spreadsheet_reports')
+      .select('id, user_id')
+      .eq('id', reportId)
+      .eq('user_id', userId)
+      .single();
+    if (ownErr || !ownedReport) {
+      return new Response(JSON.stringify({ error: 'Report not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Processing report ${reportId} for user ${userId}`);
 
     // Generate a simple HTML-based PDF using modern browser APIs
     console.log('📊 Generating report content...');
@@ -85,34 +126,9 @@ serve(async (req) => {
     
   } catch (error) {
     console.error('❌ PDF generation error:', error);
-    
-    // Try to update report status to failed
-    try {
-      const { reportId } = await req.json();
-      if (reportId) {
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-        );
-        
-        await supabase
-          .from('spreadsheet_reports')
-          .update({
-            processing_status: 'failed',
-            error_message: error.message,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', reportId);
-      }
-    } catch (updateErr) {
-      console.error('Failed to update error status:', updateErr);
-    }
-    
+
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        details: error.stack 
-      }), 
+      JSON.stringify({ error: 'PDF generation failed' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -25,12 +25,16 @@ const corsHeaders = {
 
 const SPREADSHEETS_BUCKET = 'spreadsheets'; // Source files are always in spreadsheets bucket
 const PY_SERVICE_URL = Deno.env.get('PYTHON_EDA_SERVICE_URL');
-const PY_SERVICE_TOKEN = Deno.env.get('PYTHON_SERVICE_TOKEN') || 'shared-secret-token';
+const PY_SERVICE_TOKEN = Deno.env.get('PYTHON_SERVICE_TOKEN');
 
 // Validate required environment variables
 if (!PY_SERVICE_URL) {
   console.error('CRITICAL: PYTHON_EDA_SERVICE_URL environment variable is not set');
   throw new Error('PYTHON_EDA_SERVICE_URL is required. Please add it to Supabase secrets.');
+}
+if (!PY_SERVICE_TOKEN) {
+  console.error('CRITICAL: PYTHON_SERVICE_TOKEN environment variable is not set');
+  throw new Error('PYTHON_SERVICE_TOKEN is required. Please add it to Supabase secrets.');
 }
 
 const badRequest = (message: string, status = 400) => {
@@ -66,11 +70,14 @@ serve(async (req) => {
       throw new Error('Authentication failed');
     }
 
-    const { reportId, userId, sourcePath, question, skipAI, aiInsights, analysisContext } = await req.json();
+    const { reportId, sourcePath, question, skipAI, aiInsights, analysisContext } = await req.json();
 
-    if (!reportId || !userId || !sourcePath) {
-      return badRequest('Missing required fields: reportId, userId, sourcePath');
+    if (!reportId || !sourcePath) {
+      return badRequest('Missing required fields: reportId, sourcePath');
     }
+
+    // Bind userId to the authenticated user — never trust caller-supplied value
+    const userId = user.id;
 
     console.log('Analyze function called:', { reportId, userId, sourcePath, skipAI });
 

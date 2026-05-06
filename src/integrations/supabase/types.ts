@@ -369,6 +369,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_user_subscription: {
+        Args: {
+          _current_period_end?: string
+          _current_period_start?: string
+          _plan: Database["public"]["Enums"]["plan_type"]
+          _status: string
+          _stripe_customer_id?: string
+          _stripe_subscription_id?: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

@@ -118,6 +118,7 @@ serve(async (req) => {
           .from('spreadsheet_reports')
           .select('file_path')
           .eq('id', sourceReportId)
+          .eq('user_id', user.id)
           .single();
         if (report) filePath = report.file_path;
       }
