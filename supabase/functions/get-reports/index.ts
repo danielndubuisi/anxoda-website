@@ -82,8 +82,18 @@ serve(async (req) => {
             req.url,
             req.headers
         );
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 400,
+        const msg = error instanceof Error ? error.message : String(error);
+        let userMessage = 'Failed to fetch reports';
+        let status = 400;
+        if (msg.includes('authorization') || msg.includes('Authentication')) {
+            userMessage = 'Unauthorized';
+            status = 401;
+        } else if (msg.includes('Report not found')) {
+            userMessage = 'Report not found';
+            status = 404;
+        }
+        return new Response(JSON.stringify({ error: userMessage }), {
+            status,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
     }

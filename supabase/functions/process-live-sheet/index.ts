@@ -19,7 +19,9 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const cronSecret = Deno.env.get("SCHEDULED_CRON_SECRET");
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
@@ -28,6 +30,14 @@ serve(async (req: Request): Promise<Response> => {
     let connections;
 
     if (runScheduled) {
+      // runScheduled path is internal-only — require cron shared secret
+      const headerSecret = req.headers.get("x-cron-secret");
+      if (!cronSecret || headerSecret !== cronSecret) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("live_sheet_connections")
@@ -38,13 +48,37 @@ serve(async (req: Request): Promise<Response> => {
       if (error) throw error;
       connections = data;
     } else if (connectionId) {
+      // User-triggered path — require valid JWT and verify ownership
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData, error: userErr } = await supabaseAuth.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const { data, error } = await supabase
         .from("live_sheet_connections")
         .select("*")
         .eq("id", connectionId)
+        .eq("user_id", userData.user.id)
         .single();
 
-      if (error) throw error;
+      if (error || !data) {
+        return new Response(JSON.stringify({ error: "Connection not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       connections = [data];
     } else {
       return new Response(
@@ -280,7 +314,7 @@ serve(async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in process-live-sheet:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Failed to process live sheet" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -15,7 +15,17 @@ serve(async (req: Request): Promise<Response> => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const cronSecret = Deno.env.get("SCHEDULED_CRON_SECRET");
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // Require shared cron secret to prevent public abuse
+  const headerSecret = req.headers.get("x-cron-secret");
+  if (!cronSecret || headerSecret !== cronSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     console.log("Checking for scheduled live sheet connections...");
@@ -44,6 +54,7 @@ serve(async (req: Request): Promise<Response> => {
       "process-live-sheet",
       {
         body: { runScheduled: true },
+        headers: { "x-cron-secret": cronSecret },
       }
     );
 
@@ -61,7 +72,7 @@ serve(async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in scheduled-sheet-processor:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Scheduled processing failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
