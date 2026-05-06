@@ -27,7 +27,7 @@ const Hero = () => {
                     <div className="space-y-6 sm:space-y-8 animate-fade-in text-center lg:text-left">
                         <div className="space-y-4">
                             <span className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-primary/10 text-primary rounded-full text-xs sm:text-sm font-medium">
-                                AI Business Intelligence for African SMBs
+                                Business Intelligence for African SMBs
                             </span>
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground leading-tight">
                                 Know if your business is
@@ -87,7 +87,7 @@ const Hero = () => {
                             </div>
                             <div className="text-center lg:text-left">
                                 <div className="text-2xl sm:text-3xl font-bold text-primary">
-                                    ₦ Naira-First
+                                    Locals First
                                 </div>
                                 <div className="text-xs sm:text-sm text-muted-foreground">
                                     Built for African businesses
