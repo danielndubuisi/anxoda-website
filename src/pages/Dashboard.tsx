@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,35 @@ import { useToast } from "@/hooks/use-toast";
 import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import spreadsheetImage from "@/assets/spreadsheet-analyzer-demo.webp";
 import anxodaLogo from "@/assets/logo.webp";
-import { ReportList } from "@/components/ReportList";
-import { ReportViewer } from "@/components/ReportViewer";
-import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
-import { ReportHistory } from "@/components/ReportHistory";
 import { ToolsGrid } from "@/components/ToolsGrid";
-import { ProfitProWorkflow } from "@/components/profitpro/ProfitProWorkflow";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy-load heavy dashboard feature components to reduce initial bundle.
+const ReportList = lazy(() =>
+    import("@/components/ReportList").then(m => ({ default: m.ReportList })),
+);
+const ReportViewer = lazy(() =>
+    import("@/components/ReportViewer").then(m => ({ default: m.ReportViewer })),
+);
+const AnalyzerWorkflow = lazy(() =>
+    import("@/components/AnalyzerWorkflow").then(m => ({ default: m.AnalyzerWorkflow })),
+);
+const ReportHistory = lazy(() =>
+    import("@/components/ReportHistory").then(m => ({ default: m.ReportHistory })),
+);
+const ProfitProWorkflow = lazy(() =>
+    import("@/components/profitpro/ProfitProWorkflow").then(m => ({ default: m.ProfitProWorkflow })),
+);
+
+const FeatureSkeleton = () => (
+    <div className="space-y-4 p-4" role="status" aria-label="Loading feature">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+    </div>
+);
 import {
     User,
     Building2,
