@@ -744,10 +744,12 @@ const Dashboard = () => {
 
                             <TabsContent value="reports" className="space-y-6">
                                 {selectedReportId ? (
-                                    <ReportViewer 
-                                        reportId={selectedReportId}
-                                        onBack={() => setSelectedReportId(null)}
-                                    />
+                                    <Suspense fallback={<FeatureSkeleton />}>
+                                        <ReportViewer 
+                                            reportId={selectedReportId}
+                                            onBack={() => setSelectedReportId(null)}
+                                        />
+                                    </Suspense>
                                 ) : (
                                     <div className="space-y-6">
                                         <div>
@@ -756,23 +758,27 @@ const Dashboard = () => {
                                                 View, compare, and manage all your generated reports
                                             </p>
                                         </div>
-                                        <ReportHistory 
-                                            onViewReport={(reportId) => setSelectedReportId(reportId)}
-                                            refreshTrigger={refreshTrigger}
-                                        />
+                                        <Suspense fallback={<FeatureSkeleton />}>
+                                            <ReportHistory 
+                                                onViewReport={(reportId) => setSelectedReportId(reportId)}
+                                                refreshTrigger={refreshTrigger}
+                                            />
+                                        </Suspense>
                                     </div>
                                 )}
                             </TabsContent>
 
                             <TabsContent value="tools" className="space-y-6">
                                 {selectedReportId ? (
-                                    <ReportViewer 
-                                        reportId={selectedReportId}
-                                        onBack={() => {
-                                            setSelectedReportId(null);
-                                            setSelectedTool(null);
-                                        }}
-                                    />
+                                    <Suspense fallback={<FeatureSkeleton />}>
+                                        <ReportViewer 
+                                            reportId={selectedReportId}
+                                            onBack={() => {
+                                                setSelectedReportId(null);
+                                                setSelectedTool(null);
+                                            }}
+                                        />
+                                    </Suspense>
                                 ) : selectedTool === "spreadsheet-analyzer" ? (
                                     <div className="space-y-6">
                                         <div className="flex items-center justify-between">
@@ -784,14 +790,16 @@ const Dashboard = () => {
                                                 ← Back to Tools
                                             </Button>
                                         </div>
-                                        <AnalyzerWorkflow 
-                                            onReportGenerated={() => {
-                                                setRefreshTrigger(prev => prev + 1);
-                                                fetchConnectionCount();
-                                            }}
-                                            onViewReports={() => setActiveTab("reports")}
-                                            hasExistingConnections={connectionCount > 0}
-                                        />
+                                        <Suspense fallback={<FeatureSkeleton />}>
+                                            <AnalyzerWorkflow 
+                                                onReportGenerated={() => {
+                                                    setRefreshTrigger(prev => prev + 1);
+                                                    fetchConnectionCount();
+                                                }}
+                                                onViewReports={() => setActiveTab("reports")}
+                                                hasExistingConnections={connectionCount > 0}
+                                            />
+                                        </Suspense>
                                     </div>
                                 ) : selectedTool === "cvp-analyzer" ? (
                                     <div className="space-y-6">
@@ -804,7 +812,9 @@ const Dashboard = () => {
                                                 ← Back to Tools
                                             </Button>
                                         </div>
-                                        <ProfitProWorkflow onBack={() => setSelectedTool(null)} />
+                                        <Suspense fallback={<FeatureSkeleton />}>
+                                            <ProfitProWorkflow onBack={() => setSelectedTool(null)} />
+                                        </Suspense>
                                     </div>
                                 ) : selectedTool ? (
                                     <div className="space-y-6">
