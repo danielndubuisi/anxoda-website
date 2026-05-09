@@ -2,13 +2,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Suspense, lazy } from "react";
+import BrandedSplash from "@/components/BrandedSplash";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 const Blog = lazy(() => import("./pages/Blog"));
@@ -18,13 +20,6 @@ const Cookies = lazy(() => import("./pages/Cookies"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-// Loading component
-const PageLoader = () => (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-primary">Loading...</div>
-    </div>
-);
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -33,11 +28,12 @@ const App = () => (
             <AuthProvider>
                 <Toaster />
                 <Sonner />
-                <HashRouter>
-                    <Suspense fallback={<PageLoader />}>
+                <BrowserRouter>
+                    <Suspense fallback={<BrandedSplash />}>
                         <Routes>
                             <Route path="/" element={<Index />} />
                             <Route path="/auth" element={<Auth />} />
+                            <Route path="/auth/callback" element={<AuthCallback />} />
                             <Route path="/dashboard" element={<Dashboard />} />
                             <Route path="/case-studies" element={<CaseStudies />} />
                             <Route path="/blog" element={<Blog />} />
@@ -49,7 +45,7 @@ const App = () => (
                             <Route path="*" element={<NotFound />} />
                         </Routes>
                     </Suspense>
-                </HashRouter>
+                </BrowserRouter>
             </AuthProvider>
         </TooltipProvider>
     </QueryClientProvider>

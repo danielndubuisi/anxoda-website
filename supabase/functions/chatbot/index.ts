@@ -1,10 +1,56 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const CHATBOT_DAILY_LIMIT = 20;
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Fail-open daily counter (mirrors profitpro-chat). */
+async function checkAndIncrement(
+  admin: ReturnType<typeof createClient>,
+  scope: string,
+  identifier: string,
+  limit: number,
+): Promise<{ allowed: boolean }> {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: existing, error: selErr } = await admin
+      .from("ai_usage_counters")
+      .select("id, count")
+      .eq("scope", scope)
+      .eq("identifier", identifier)
+      .eq("day", today)
+      .maybeSingle();
+    if (selErr) throw selErr;
+    const current = existing?.count ?? 0;
+    if (current >= limit) return { allowed: false };
+    if (existing) {
+      const { error } = await admin
+        .from("ai_usage_counters")
+        .update({ count: current + 1 })
+        .eq("id", existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await admin
+        .from("ai_usage_counters")
+        .insert({ scope, identifier, day: today, count: 1 });
+      if (error) throw error;
+    }
+    return { allowed: true };
+  } catch (e) {
+    console.warn("[chatbot rate-limit] fail-open due to error:", e);
+    return { allowed: true };
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -28,6 +74,38 @@ serve(async (req) => {
     }
 
     console.log("Received chatbot request with", messages?.length || 0, "messages");
+
+    // ---- Rate limiting per IP (fail-open) ------------------------------
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const salt = Deno.env.get("RATE_LIMIT_SALT");
+    if (!salt) {
+      console.warn("[chatbot] RATE_LIMIT_SALT not set; skipping IP-based rate limit (fail-open).");
+    }
+    if (supabaseUrl && serviceRoleKey && salt) {
+      try {
+        const fwd = req.headers.get("x-forwarded-for") || "";
+        const ip = fwd.split(",")[0]?.trim() || "unknown";
+        const ua = req.headers.get("user-agent") || "ua";
+        const identifier = await sha256Hex(`${salt}|${ip}|${ua}`);
+        const admin = createClient(supabaseUrl, serviceRoleKey);
+        const { allowed } = await checkAndIncrement(
+          admin, "chatbot", identifier, CHATBOT_DAILY_LIMIT,
+        );
+        if (!allowed) {
+          return new Response(JSON.stringify({
+            error: "rate_limited",
+            message: "You've reached today's chat limit. Please try again tomorrow or contact us via WhatsApp.",
+          }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (e) {
+        console.warn("[chatbot] rate-limit subsystem error, failing open:", e);
+      }
+    }
+    // --------------------------------------------------------------------
 
     // System prompt with Anxoda's business context
     const systemPrompt = `You are Anxoda's friendly AI business assistant. You help potential clients learn about Anxoda's services and guide them toward scheduling consultations.

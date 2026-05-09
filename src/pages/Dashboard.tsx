@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,35 @@ import { useToast } from "@/hooks/use-toast";
 import { SpreadsheetUploader } from "@/components/SpreadsheetUploader";
 import spreadsheetImage from "@/assets/spreadsheet-analyzer-demo.webp";
 import anxodaLogo from "@/assets/logo.webp";
-import { ReportList } from "@/components/ReportList";
-import { ReportViewer } from "@/components/ReportViewer";
-import { AnalyzerWorkflow } from "@/components/AnalyzerWorkflow";
-import { ReportHistory } from "@/components/ReportHistory";
 import { ToolsGrid } from "@/components/ToolsGrid";
-import { ProfitProWorkflow } from "@/components/profitpro/ProfitProWorkflow";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy-load heavy dashboard feature components to reduce initial bundle.
+const ReportList = lazy(() =>
+    import("@/components/ReportList").then(m => ({ default: m.ReportList })),
+);
+const ReportViewer = lazy(() =>
+    import("@/components/ReportViewer").then(m => ({ default: m.ReportViewer })),
+);
+const AnalyzerWorkflow = lazy(() =>
+    import("@/components/AnalyzerWorkflow").then(m => ({ default: m.AnalyzerWorkflow })),
+);
+const ReportHistory = lazy(() =>
+    import("@/components/ReportHistory").then(m => ({ default: m.ReportHistory })),
+);
+const ProfitProWorkflow = lazy(() =>
+    import("@/components/profitpro/ProfitProWorkflow").then(m => ({ default: m.ProfitProWorkflow })),
+);
+
+const FeatureSkeleton = () => (
+    <div className="space-y-4 p-4" role="status" aria-label="Loading feature">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+    </div>
+);
 import {
     User,
     Building2,
@@ -94,7 +115,7 @@ const Dashboard = () => {
         }
     }, [user, loading, navigate]);
 
-    // HashRouter-safe deep links: /#/dashboard?tool=cvp-analyzer or ?tab=reports
+    // Deep links: /dashboard?tool=cvp-analyzer or ?tab=reports
     useEffect(() => {
         if (!user) return;
         const tabParam = searchParams.get("tab");
@@ -723,10 +744,12 @@ const Dashboard = () => {
 
                             <TabsContent value="reports" className="space-y-6">
                                 {selectedReportId ? (
-                                    <ReportViewer 
-                                        reportId={selectedReportId}
-                                        onBack={() => setSelectedReportId(null)}
-                                    />
+                                    <Suspense fallback={<FeatureSkeleton />}>
+                                        <ReportViewer 
+                                            reportId={selectedReportId}
+                                            onBack={() => setSelectedReportId(null)}
+                                        />
+                                    </Suspense>
                                 ) : (
                                     <div className="space-y-6">
                                         <div>
@@ -735,23 +758,27 @@ const Dashboard = () => {
                                                 View, compare, and manage all your generated reports
                                             </p>
                                         </div>
-                                        <ReportHistory 
-                                            onViewReport={(reportId) => setSelectedReportId(reportId)}
-                                            refreshTrigger={refreshTrigger}
-                                        />
+                                        <Suspense fallback={<FeatureSkeleton />}>
+                                            <ReportHistory 
+                                                onViewReport={(reportId) => setSelectedReportId(reportId)}
+                                                refreshTrigger={refreshTrigger}
+                                            />
+                                        </Suspense>
                                     </div>
                                 )}
                             </TabsContent>
 
                             <TabsContent value="tools" className="space-y-6">
                                 {selectedReportId ? (
-                                    <ReportViewer 
-                                        reportId={selectedReportId}
-                                        onBack={() => {
-                                            setSelectedReportId(null);
-                                            setSelectedTool(null);
-                                        }}
-                                    />
+                                    <Suspense fallback={<FeatureSkeleton />}>
+                                        <ReportViewer 
+                                            reportId={selectedReportId}
+                                            onBack={() => {
+                                                setSelectedReportId(null);
+                                                setSelectedTool(null);
+                                            }}
+                                        />
+                                    </Suspense>
                                 ) : selectedTool === "spreadsheet-analyzer" ? (
                                     <div className="space-y-6">
                                         <div className="flex items-center justify-between">
@@ -763,14 +790,16 @@ const Dashboard = () => {
                                                 ← Back to Tools
                                             </Button>
                                         </div>
-                                        <AnalyzerWorkflow 
-                                            onReportGenerated={() => {
-                                                setRefreshTrigger(prev => prev + 1);
-                                                fetchConnectionCount();
-                                            }}
-                                            onViewReports={() => setActiveTab("reports")}
-                                            hasExistingConnections={connectionCount > 0}
-                                        />
+                                        <Suspense fallback={<FeatureSkeleton />}>
+                                            <AnalyzerWorkflow 
+                                                onReportGenerated={() => {
+                                                    setRefreshTrigger(prev => prev + 1);
+                                                    fetchConnectionCount();
+                                                }}
+                                                onViewReports={() => setActiveTab("reports")}
+                                                hasExistingConnections={connectionCount > 0}
+                                            />
+                                        </Suspense>
                                     </div>
                                 ) : selectedTool === "cvp-analyzer" ? (
                                     <div className="space-y-6">
@@ -783,7 +812,9 @@ const Dashboard = () => {
                                                 ← Back to Tools
                                             </Button>
                                         </div>
-                                        <ProfitProWorkflow onBack={() => setSelectedTool(null)} />
+                                        <Suspense fallback={<FeatureSkeleton />}>
+                                            <ProfitProWorkflow onBack={() => setSelectedTool(null)} />
+                                        </Suspense>
                                     </div>
                                 ) : selectedTool ? (
                                     <div className="space-y-6">

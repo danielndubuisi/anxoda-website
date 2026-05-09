@@ -43,12 +43,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
-
-            if (event === "SIGNED_IN") {
-                window.location.href = "/#/dashboard";
-            } else if (event === "SIGNED_OUT") {
-                window.location.href = "/";
-            }
+            // Navigation is handled by individual pages (Auth.tsx, AuthCallback.tsx)
+            // via useNavigate so we keep the SPA in-router and avoid full reloads.
         });
 
         // THEN check for existing session
@@ -63,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const signUp = async (email: string, password: string, metadata?: any) => {
         try {
-            const redirectUrl = `${window.location.origin}/`;
+            const redirectUrl = `${window.location.origin}/auth/callback`;
 
             const { error } = await supabase.auth.signUp({
                 email,
@@ -150,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Google OAuth sign-in
     const signInWithGoogle = async () => {
-        const redirectUrl = `${window.location.origin}/`;
+        const redirectUrl = `${window.location.origin}/auth/callback`;
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",

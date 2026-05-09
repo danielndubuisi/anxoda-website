@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_counters: {
+        Row: {
+          count: number
+          created_at: string
+          day: string
+          id: string
+          identifier: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          identifier: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          identifier?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           company: string | null

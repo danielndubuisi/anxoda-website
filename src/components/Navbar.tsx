@@ -144,6 +144,8 @@ const Navbar = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={toggleMenu}
+                                aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                                aria-expanded={isMenuOpen}
                                 className="h-10 w-10">
                                 {isMenuOpen ? (
                                     <X className="w-5 h-5" />

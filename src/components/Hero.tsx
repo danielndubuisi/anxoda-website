@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const Hero = () => {
     const { user } = useAuth();
 
-    // HashRouter-safe deep links
+    // Clean BrowserRouter deep links
     const profitProHref = user
         ? "/dashboard?tool=cvp-analyzer"
         : "/auth?redirect=cvp-analyzer";
