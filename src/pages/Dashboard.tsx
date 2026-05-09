@@ -115,7 +115,7 @@ const Dashboard = () => {
         }
     }, [user, loading, navigate]);
 
-    // HashRouter-safe deep links: /#/dashboard?tool=cvp-analyzer or ?tab=reports
+    // Deep links: /dashboard?tool=cvp-analyzer or ?tab=reports
     useEffect(() => {
         if (!user) return;
         const tabParam = searchParams.get("tab");
